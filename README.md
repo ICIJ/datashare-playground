@@ -2,11 +2,12 @@
 <a href="https://datashare.icij.org/">
   <img src="https://datashare.icij.org/android-chrome-512x512.png" width="158px">
 </a>
-<br />
-<strong><big>Datashare playground</big></strong>
-<br />
-A series of bash utilities to perform common opperation on Datashare documents stored in ElasticSearch.
 </p>
+<h1 align="center">Datashare Playground</h1>
+
+A series of bash utilities to perform common operations on Datashare documents stored in ElasticSearch.
+
+## Scripts
 
 ```bash
 .
