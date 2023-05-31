@@ -12,11 +12,11 @@ A series of bash utilities to perform common operations on Datashare documents s
 ```bash
 .
 ├── document
-│   ├── count.sh # Count documents on under a given path
+│   ├── count.sh # Count documents under a given path
 │   ├── move.sh # Move documents from a directory to another
-│   └── reindex.sh # Reindex files from index under a specific directory
+│   └── reindex.sh # Reindex files from an index and under a specific directory
 ├── index
-│   ├── clone.sh # Close a given index into another
+│   ├── clone.sh # Clone a given index into another
 │   └── list.sh # List all indices
 ├── lib
 │   └── sync.sh # Sync this directory with another location with rsync
