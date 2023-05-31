@@ -58,19 +58,19 @@ An example showing how to copy documents from the `kimchi` index to the `miso` w
 ./index/reindex.sh kimchi miso-tmp /disk/kimchi/tofu
 ```
 
-**2bis. While the reindex is being done, we can watch it's progress using the return task id from the last command:**
+**3. While the reindex is being done, watch progress using the task id from the last command:**
 
 ```
 ./task/watch.sh 8UnTR-67T8y0idkyndf77Q:36041259
 ```
 
-**3. The document moved to `miso-tmp` might used the wrong path so we update it as well:**
+**4. The document moved to `miso-tmp` might used the wrong path so we update it as well:**
 
 ```
 ./document/move.sh miso-tmp /disk/kimchi/tofu /disk/miso/tofu
 ```
 
-**4. Finally, after checking everything is fine, we substitue the `miso` index by `miso-tmp`:**
+**5. Finally, after checking everything is fine, we substitue the `miso` index by `miso-tmp`:**
 
 ```
 curl -XDELETE http;//localhost:9200/miso
