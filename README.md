@@ -70,7 +70,7 @@ An example showing how to copy documents from the `kimchi` index to the `miso` w
 ./document/move.sh miso-tmp /disk/kimchi/tofu /disk/miso/tofu
 ```
 
-**4. Finally, after checking everything is fine, we substitue the `miso` index by `miso-tmp`:
+**4. Finally, after checking everything is fine, we substitue the `miso` index by `miso-tmp`:**
 
 ```
 curl -XDELETE http;//localhost:9200/miso
