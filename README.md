@@ -64,7 +64,7 @@ An example showing how to copy documents from the `kimchi` index to the `miso` w
 ./task/watch.sh 8UnTR-67T8y0idkyndf77Q:36041259
 ```
 
-**4. The document moved to `miso-tmp` might used the wrong path so we update it as well:**
+**4. The document moved to `miso-tmp` use the wrong path so we update it as well:**
 
 ```
 ./document/move.sh miso-tmp /disk/kimchi/tofu /disk/miso/tofu
