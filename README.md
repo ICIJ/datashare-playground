@@ -73,6 +73,6 @@ An example showing how to copy documents from the `kimchi` index to the `miso` w
 **5. Finally, after checking everything is fine, we substitue the `miso` index by `miso-tmp`:**
 
 ```
-curl -XDELETE http;//localhost:9200/miso
+curl -XDELETE http://localhost:9200/miso
 ./index/clone.sh miso-tmp miso
 ```
