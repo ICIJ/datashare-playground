@@ -74,5 +74,5 @@ An example showing how to copy documents from the `kimchi` index to the `miso` w
 
 ```
 curl -XDELETE http;//localhost:9200/miso
-./index/clonse.sh miso-tmp miso
+./index/clone.sh miso-tmp miso
 ```
