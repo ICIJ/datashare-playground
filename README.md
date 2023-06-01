@@ -93,7 +93,7 @@ This opperation might be useful if mapping or settings of the index changed.
 **2. Reindex all documents (under "/" path) from `ricecake` under to `ricecake-tmp`:**
 
 ```
-./index/reindex.sh ricecake ricecake-tmp /
+./documents/reindex.sh ricecake ricecake-tmp /
 ```
 
 **3. Replace the old `ricecake` by the new one:**
