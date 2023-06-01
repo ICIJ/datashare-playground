@@ -15,5 +15,3 @@ case "$choice" in
   $1 ) curl -XDELETE "$ELASTICSEARCH_URL/$1" | jq;;
   * ) echo "Invalid input: deletion aborted.";;
 esac
-
-# 

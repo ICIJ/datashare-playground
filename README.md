@@ -29,7 +29,10 @@ Here are the main scripts available in this repository:
 │   └── reindex.sh # Reindex files from an index and under a specific directory
 ├── index
 │   ├── clone.sh # Clone a given index into another
-│   └── list.sh # List all indices
+│   ├── create.sh # Create an index using default Datashare settings
+│   ├── delete.sh # Delete an index
+│   ├── list.sh # List all indices
+│   └── replace.sh # Replace an index by another one
 ├── lib
 │   └── sync.sh # Sync this directory with another location with rsync
 └── task
@@ -73,6 +76,5 @@ An example showing how to copy documents from the `kimchi` index to the `miso` w
 **5. Finally, after checking everything is fine, we substitue the `miso` index by `miso-tmp`:**
 
 ```
-curl -XDELETE http://localhost:9200/miso
-./index/clone.sh miso-tmp miso
+./index/replace.sh miso-tmp miso
 ```
