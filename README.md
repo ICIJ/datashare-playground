@@ -81,7 +81,7 @@ An example showing how to copy documents from the `kimchi` index to the `miso` w
 
 ### Re-index an index
 
-This opperation might be useful if mapping or settings of the index changed (which requires). 
+This opperation might be useful if mapping or settings of the index changed. 
 
 
 **1. Create a `ricecake-tmp` empty index:**
