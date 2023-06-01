@@ -78,3 +78,26 @@ An example showing how to copy documents from the `kimchi` index to the `miso` w
 ```
 ./index/replace.sh miso-tmp miso
 ```
+
+### Re-index an index
+
+This opperation might be useful if mapping or settings of the index changed (which requires). 
+
+
+**1. Create a `ricecake-tmp` empty index:**
+
+```
+./index/create.sh ricecake-tmp
+```
+
+**2. Reindex all documents (under "/" path) from `ricecake` under to `ricecake-tmp`:**
+
+```
+./index/reindex.sh ricecake ricecake-tmp /
+```
+
+**3. Replace the old `ricecake` by the new one:**
+
+```
+./index/replace.sh ricecake-tmp ricecake
+```
