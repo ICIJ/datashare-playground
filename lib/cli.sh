@@ -17,6 +17,14 @@ check_elasticsearch_url() {
   fi
 }
 
+check_redis_url() {
+  # Check if the REDIS_URL environment variable is not defined
+  if [[ -z "${REDIS_URL}" ]]; then
+    echo "Error: REDIS_URL is not defined. You can use a .env file."
+    exit 1
+  fi
+}
+
 check_bins() {
   # Define the required dependencies as an array
   local dependencies=("curl" "jq" "watch")
@@ -34,6 +42,14 @@ check_inotifywait() {
   # Check if inotifywait is installed through inotify-tools
   if ! command -v "inotifywait" >/dev/null 2>&1; then
     echo "Error: inotify-tools is not installed. Please install it before running this script."
+    exit 1
+  fi
+}
+
+check_redis_cli() {
+  # Check if redis-cli is installed through inotify-tools
+  if ! command -v "redis-cli" >/dev/null 2>&1; then
+    echo "Error: redis-tools is not installed. Please install it before running this script."
     exit 1
   fi
 }
