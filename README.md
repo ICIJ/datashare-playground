@@ -55,6 +55,15 @@ Here are the main scripts available in this repository:
 │       ├── list.sh # Get all tasks
 │       └── watch.sh # Watch a given task status
 │
+├── redis
+│   │
+│   ├── queue
+│   │   └── rpush.sh # Insert stdin rows to a given queue
+│   │
+│   └── report
+│       ├── hdel.sh # Remove stdin rows from a given report map
+│       └── hset.sh # Insert stdin rows to a given report map
+│
 └── lib
     └── sync.sh # Sync this directory with another location with rsync
 ```
