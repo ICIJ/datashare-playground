@@ -7,4 +7,4 @@ check_env
 check_bins
 check_elasticsearch_url
 
-curl -sXGET "$ELASTICSEARCH_URL/_tasks?detailed"
+curl -sXGET "$ELASTICSEARCH_URL/_tasks?detailed" | jq
