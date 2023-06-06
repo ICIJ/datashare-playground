@@ -7,7 +7,8 @@ check_env
 check_bins
 check_elasticsearch_url
 
-sort=${1:-'index'}
-format=${2:-'txt'}
+target=${1:-'_all'}
+sort=${2:-'index'}
+format=${3:-'txt'}
 
-curl -sXGET "$ELASTICSEARCH_URL/_cat/indices?v&s=$sort&format=$format"
+curl -sXGET "$ELASTICSEARCH_URL/_cat/indices/$target?v&s=$sort&format=$format"
