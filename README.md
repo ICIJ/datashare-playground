@@ -24,6 +24,7 @@ Here are the main scripts available in this repository:
 ```bash
 .
 ├── elasticsearch
+│   │
 │   ├── document
 │   │   ├── count.sh  # Count documents under a given path
 │   │   ├── move.sh  # Move documents from a directory to another
