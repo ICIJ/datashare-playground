@@ -9,6 +9,8 @@ check_rsync
 source="$script_dir/../"
 target=$1
 
+rsync -az --info=progress2 --partial $source $target
+
 while inotifywait -re modify,create,delete "$source"
 do
   rsync -az --info=progress2 --partial $source $target
