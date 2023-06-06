@@ -80,31 +80,31 @@ An example showing how to copy documents from the `kimchi` index to the `miso` w
 **1. Create a clone of the "miso" index to avoid messing up with data:**
 
 ```
-./index/clone.sh miso miso-tmp
+./elasticsearch/index/clone.sh miso miso-tmp
 ```
 
 **2. Reindex documents from `kimchi` under the folder `/disk/kimchi/tofu` onto `miso-tmp`:**
 
 ```
-./index/reindex.sh kimchi miso-tmp /disk/kimchi/tofu
+./elasticsearch/index/reindex.sh kimchi miso-tmp /disk/kimchi/tofu
 ```
 
 **3. While the reindex is being done, watch progress using the task id from the last command:**
 
 ```
-./task/watch.sh 8UnTR-67T8y0idkyndf77Q:36041259
+./elasticsearch/task/watch.sh 8UnTR-67T8y0idkyndf77Q:36041259
 ```
 
 **4. The document moved to `miso-tmp` use the wrong path so we update it as well:**
 
 ```
-./document/move.sh miso-tmp /disk/kimchi/tofu /disk/miso/tofu
+./elasticsearch/document/move.sh miso-tmp /disk/kimchi/tofu /disk/miso/tofu
 ```
 
 **5. Finally, after checking everything is fine, we substitue the `miso` index by `miso-tmp`:**
 
 ```
-./index/replace.sh miso-tmp miso
+./elasticsearch/index/replace.sh miso-tmp miso
 ```
 
 ### Re-index an index
@@ -115,17 +115,56 @@ This opperation might be useful if mapping or settings of the index changed.
 **1. Create a `ricecake-tmp` empty index:**
 
 ```
-./index/create.sh ricecake-tmp
+./elasticsearch/index/create.sh ricecake-tmp
 ```
 
 **2. Reindex all documents (under "/" path) from `ricecake` under to `ricecake-tmp`:**
 
 ```
-./documents/reindex.sh ricecake ricecake-tmp /
+./elasticsearch/documents/reindex.sh ricecake ricecake-tmp /
 ```
 
 **3. Replace the old `ricecake` by the new one:**
 
 ```
-./index/replace.sh ricecake-tmp ricecake
+./elasticsearch/index/replace.sh ricecake-tmp ricecake
+```
+
+### Queue files (for indexing)
+
+This will get files from `find` and store them in the `extract:queue` list:
+
+```
+find /home/foo/bar -type f | ./redis/queue/rpush.sh extract:queue
+```
+
+Or to filtered that list with a `filtered.txt` file:
+
+find ~+ -type f | grep -vFf filtered.txt | ./redis/queue/rpush.sh extract:queue
+
+This can also be done with a single file:
+
+```
+echo "/file/to/index.pdf" | ./redis/queue/rpush.sh extract:report
+```
+
+### Add files to a report map
+
+Report map are used to store error and skip already indexed files.
+
+```
+find /home/foo/bar -type f | ./redis/report/hset.sh extract:report
+```
+### Delete files from a report map
+
+This can be usefull to force a reindex on certain files:
+
+```
+cat to-reindex.txt | ./redis/report/hdel.sh extract:report
+```
+
+This can also be done with a single file:
+
+```
+echo "/file/to/reindex.pdf" | ./redis/report/hdel.sh extract:report
 ```
