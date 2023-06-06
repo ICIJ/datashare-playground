@@ -1,9 +1,6 @@
 {
   "index.mapping.total_fields.limit": 100000,
   "index.number_of_shards" : 1,
-  "index.number_of_replicas": 0,
-  "index.refresh_interval": -1,
-  "index.mapping.ignore_malformed": true,
   "index.query.default_field": [
     "content",
     "mentionNorm",
