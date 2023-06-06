@@ -140,7 +140,9 @@ find /home/foo/bar -type f | ./redis/queue/rpush.sh extract:queue
 
 Or to filtered that list with a `filtered.txt` file:
 
+```
 find ~+ -type f | grep -vFf filtered.txt | ./redis/queue/rpush.sh extract:queue
+```
 
 This can also be done with a single file:
 
