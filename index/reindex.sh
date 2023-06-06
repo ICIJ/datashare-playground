@@ -16,10 +16,8 @@ body='{
   "source": {
     "index": "'"${source}"'",
     "query": {
-      {
-        "query_string": {
-          "query": "'"${query_string}"'" 
-        }
+      "query_string": {
+        "query": "'"${query_string}"'" 
       }
     }
   },
