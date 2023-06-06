@@ -19,7 +19,7 @@ rpush () {
   local values=("$@")
   # Concatenates all values into a space separated list of quoted value
   local joined_values=$(printf '"%s" ' "${values[@]}")
-  # Finally, use pipe to RPUSH the bash all at once
+  # Finally, use pipe to RPUSH the values all at once
   echo "RPUSH $key_name ${joined_values}" | $redis_cli
 }
 
