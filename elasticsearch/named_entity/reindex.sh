@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
 script_dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-source $script_dir/../lib/cli.sh
+source $script_dir/../../lib/cli.sh
 
 check_usage 2 '<source> <target> [<query_string>]'
 check_bins
@@ -25,7 +25,7 @@ body='{
           },
           {
             "term" : { 
-              "type" : "Duplicate" 
+              "type" : "NamedEntity" 
             }
           }
         ]

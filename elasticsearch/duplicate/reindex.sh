@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
 script_dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-source $script_dir/../lib/cli.sh
+source $script_dir/../../lib/cli.sh
 
 check_usage 2 '<source> <target> [<query_string>]'
 check_bins
@@ -16,8 +16,19 @@ body='{
   "source": {
     "index": "'"${source}"'",
     "query": {
-      "query_string": {
-        "query": "'"${query_string}"'" 
+      "bool" : {
+        "must" : [
+          {
+            "query_string": {
+              "query": "'"${query_string}"'" 
+            }
+          },
+          {
+            "term" : { 
+              "type" : "Duplicate" 
+            }
+          }
+        ]
       }
     }
   },

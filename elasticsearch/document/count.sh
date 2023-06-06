@@ -1,15 +1,17 @@
 #!/bin/bash -e
 
 script_dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-source $script_dir/../lib/cli.sh
+source $script_dir/../../lib/cli.sh
 
-check_usage 1 '<index> [<query_string>]'
+check_usage 1 '<index> [<path>] [<query_string>]'
 check_bins
 check_env
 check_elasticsearch_url
 
 index=$1
-query_string=${2:-'*:*'}
+path=${2:-/}
+path=${path%/}
+query_string=${3:-'*:*'}
 
 body='{
   "query": {
@@ -21,8 +23,13 @@ body='{
           }
         },
         {
+          "prefix": { 
+            "path": "'"${path}"'"
+          }
+        },
+        {
           "term" : { 
-            "type" : "Duplicate" 
+            "type" : "Document" 
           }
         }
       ]
