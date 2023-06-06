@@ -10,11 +10,12 @@ A series of bash utilities to perform common operations on Datashare documents s
 ## Setup
 
 To run those scripts only needs to have access to the ElasticSearch URL which must be stored in an 
-environement variable called `ELASTICSEARCH_URL`. To avoid setting up this variable everytime you
-use those script, you can store in a `.env` at the root of this directory:
+environement variable called `ELASTICSEARCH_URL`. Same logic applies to `REDIS_URL`. To avoid setting up 
+this variable everytime you use those script, you can store in a `.env` at the root of this directory:
 
 ```
 ELASTICSEARCH_URL=http://localhost:9200
+REDIS_URL=redis://redis
 ```
 
 ## Scripts
