@@ -23,32 +23,39 @@ Here are the main scripts available in this repository:
 
 ```bash
 .
-├── document
-│   ├── count.sh # Count documents under a given path
-│   ├── move.sh # Move documents from a directory to another
-│   └── reindex.sh # Reindex documents from a given index and under a specific directory
-├── duplicate
-│   ├── count.sh # Count duplicates
-│   └── reindex.sh # Reindex duplicates from a given index
-├── index
-│   ├── clone.sh # Clone a given index into another
-│   ├── create.sh # Create an index using default Datashare settings
-│   ├── delete.sh # Delete an index
-│   ├── list.sh # List all indices
-│   ├── number_of_replicas.sh # Get or change number of replicas for a given index
-│   ├── refresh_interval.sh # Get or change refresh interval for a given index
-│   ├── refresh.sh # Refresh a given index
-│   ├── reindex.sh # Reindex everything from a given index
-│   └── replace.sh # Replace an index by another one
-├── lib
-│   └── sync.sh # Sync this directory with another location with rsync
-├── named_entity
-│   ├── count.sh # Count named entities
-│   └── reindex.sh # Reindex named entities from a given index
-└── task
-    ├── cancel.sh # Cancel a given task
-    ├── get.sh # Get a given task status
-    └── watch.sh # Watch a given task status
+├── elasticsearch
+│   ├── document
+│   │   ├── count.sh  # Count documents under a given path
+│   │   ├── move.sh  # Move documents from a directory to another
+│   │   └── reindex.sh  # Reindex documents from a given index and under a specific directory
+│   │
+│   ├── duplicate
+│   │   ├── count.sh # Count duplicates
+│   │   └── reindex.sh # Reindex duplicates from a given index
+│   │
+│   ├── index
+│   │   ├── clone.sh # Clone a given index into another
+│   │   ├── create.sh # Create an index using default Datashare settings
+│   │   ├── delete.sh # Delete an index
+│   │   ├── list.sh # Get all indices
+│   │   ├── number_of_replicas.sh # Get or change number of replicas for a given index
+│   │   ├── refresh_interval.sh # Get or change refresh interval for a given index
+│   │   ├── refresh.sh # Refresh a given index
+│   │   ├── reindex.sh # Reindex everything from a given index
+│   │   └── replace.sh # Replace an index by another one
+│   │
+│   ├── named_entity
+│   │   ├── count.sh # Count named entities
+│   │   └── reindex.sh # Reindex named entities from a given index
+│   │
+│   └── task
+│       ├── cancel.sh # Cancel a given task
+│       ├── get.sh # Get a given task status
+│       ├── list.sh # Get all tasks
+│       └── watch.sh # Watch a given task status
+│
+└── lib
+    └── sync.sh # Sync this directory with another location with rsync
 ```
 
 ## Cookbook
