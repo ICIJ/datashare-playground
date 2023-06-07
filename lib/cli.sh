@@ -65,10 +65,10 @@ check_rsync() {
 check_env() {
   # Get the directory of the script
   local script_dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-
   # Calculate the path to the .env file based on the script directory
-  local envpath=${script_dir%%/}/../.env
-
+  local default_envpath=${script_dir%%/}/../.env}
+  # Then get the env from argument or use the default
+  local envpath=${1:-$default_envpath}
   # Check if the .env file exists and load its contents
   if [[ -f $envpath ]]; then
     source $envpath
