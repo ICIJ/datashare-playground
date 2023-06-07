@@ -7,7 +7,7 @@
 
 A series of bash utilities to perform common operations on Datashare documents stored in ElasticSearch.
 
-## Test ![](https://github.com/icij/datashare-playground/actions/workflows/main.yml/badge.svg)
+## Test [![](https://github.com/icij/datashare-playground/actions/workflows/main.yml/badge.svg)](https://github.com/ICIJ/datashare-playground/actions)
 
 Developpers can run tests using [bats](https://github.com/bats-core/bats-core):
 
