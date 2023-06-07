@@ -11,8 +11,9 @@ A series of bash utilities to perform common operations on Datashare documents s
 
 Developpers can run tests using [bats](https://github.com/bats-core/bats-core):
 
-```
-git submodules init
+```bash
+git submodules init # Install bats submodules
+export ELASTICSEARCH_URL=http://localhost:9200 # Change this with the URL of ElasticSearch 
 ./test/bats/bin/bats -r test/units
 ```
 
@@ -22,7 +23,7 @@ To run those scripts only needs to have access to the ElasticSearch URL which mu
 environement variable called `ELASTICSEARCH_URL`. Same logic applies to `REDIS_URL`. To avoid setting up 
 this variable everytime you use those script, you can store in a `.env` at the root of this directory:
 
-```
+```bash
 ELASTICSEARCH_URL=http://localhost:9200
 REDIS_URL=redis://redis
 ```
@@ -88,31 +89,31 @@ An example showing how to copy documents from the `kimchi` index to the `miso` w
 
 **1. Create a clone of the "miso" index to avoid messing up with data:**
 
-```
+```bash
 ./elasticsearch/index/clone.sh miso miso-tmp
 ```
 
 **2. Reindex documents from `kimchi` under the folder `/disk/kimchi/tofu` onto `miso-tmp`:**
 
-```
+```bash
 ./elasticsearch/index/reindex.sh kimchi miso-tmp /disk/kimchi/tofu
 ```
 
 **3. While the reindex is being done, watch progress using the task id from the last command:**
 
-```
+```bash
 ./elasticsearch/task/watch.sh 8UnTR-67T8y0idkyndf77Q:36041259
 ```
 
 **4. The document moved to `miso-tmp` use the wrong path so we update it as well:**
 
-```
+```bash
 ./elasticsearch/document/move.sh miso-tmp /disk/kimchi/tofu /disk/miso/tofu
 ```
 
 **5. Finally, after checking everything is fine, we substitue the `miso` index by `miso-tmp`:**
 
-```
+```bash
 ./elasticsearch/index/replace.sh miso-tmp miso
 ```
 
@@ -123,19 +124,19 @@ This opperation might be useful if mapping or settings of the index changed.
 
 **1. Create a `ricecake-tmp` empty index:**
 
-```
+```bash
 ./elasticsearch/index/create.sh ricecake-tmp
 ```
 
 **2. Reindex all documents (under "/" path) from `ricecake` under to `ricecake-tmp`:**
 
-```
+```bash
 ./elasticsearch/documents/reindex.sh ricecake ricecake-tmp /
 ```
 
 **3. Replace the old `ricecake` by the new one:**
 
-```
+```bash
 ./elasticsearch/index/replace.sh ricecake-tmp ricecake
 ```
 
@@ -143,19 +144,19 @@ This opperation might be useful if mapping or settings of the index changed.
 
 This will get files from `find` and store them in the `extract:queue` list:
 
-```
+```bash
 find /home/foo/bar -type f | ./redis/queue/rpush.sh extract:queue
 ```
 
 Or to filtered that list with a `filtered.txt` file:
 
-```
+```bash
 find ~+ -type f | grep -vFf filtered.txt | ./redis/queue/rpush.sh extract:queue
 ```
 
 This can also be done with a single file:
 
-```
+```bash
 echo "/file/to/index.pdf" | ./redis/queue/rpush.sh extract:report
 ```
 
@@ -163,19 +164,19 @@ echo "/file/to/index.pdf" | ./redis/queue/rpush.sh extract:report
 
 Report map are used to store error and skip already indexed files.
 
-```
+```bash
 find /home/foo/bar -type f | ./redis/report/hset.sh extract:report
 ```
 ### Delete files from a report map
 
 This can be usefull to force a reindex on certain files:
 
-```
+```bash
 cat to-reindex.txt | ./redis/report/hdel.sh extract:report
 ```
 
 This can also be done with a single file:
 
-```
+```bash
 echo "/file/to/reindex.pdf" | ./redis/report/hdel.sh extract:report
 ```

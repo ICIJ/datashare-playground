@@ -1,4 +1,4 @@
-export ELASTICSEARCH_URL=http://elasticsearch:9200
+export ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-http://elasticsearch:9200}
 
 @test "cannot run count without an index" {
     bats_require_minimum_version 1.5.0

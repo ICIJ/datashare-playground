@@ -10,7 +10,7 @@ setup () {
 
 @test "throw an error when ELASTICSEARCH_URL is not defined" {
     bats_require_minimum_version 1.5.0
-
+    unset ELASTICSEARCH_URL
     run ! check_elasticsearch_url
 }
 
