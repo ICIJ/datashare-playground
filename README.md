@@ -5,7 +5,7 @@
 </p>
 <h1 align="center">Datashare Playground</h1>
 
-A series of bash utilities to perform common operations on Datashare documents stored in ElasticSearch.
+A zero-dependencies series of bash script to interact with Datashare's index and queue. 
 
 ## Test [![](https://github.com/icij/datashare-playground/actions/workflows/main.yml/badge.svg)](https://github.com/ICIJ/datashare-playground/actions)
 
