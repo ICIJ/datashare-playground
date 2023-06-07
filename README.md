@@ -74,9 +74,8 @@ Here are the main scripts available in this repository:
 Developpers can run tests using [bats](https://github.com/bats-core/bats-core):
 
 ```bash
-git submodules init # Install bats submodules
 export ELASTICSEARCH_URL=http://localhost:9200 # Change this with the URL of ElasticSearch 
-./test/bats/bin/bats -r test/units
+make tests
 ```
 
 ## Cookbook
