@@ -1,21 +1,11 @@
+# Datashare Playground [![](https://img.shields.io/github/actions/workflow/status/icij/datashare-playground/main.yml)](https://github.com/ICIJ/datashare-playground/actions)
+
+![Datashare: Better analyze information, in all its forms](https://i.imgur.com/9SPU1x2.png)
+
 <p align="center">
-<a href="https://datashare.icij.org/">
-  <img src="https://datashare.icij.org/android-chrome-512x512.png" width="158px">
-</a>
+A zero-dependencies series of bash scripts to interact with Datashare's index and queue.<br />
+<a href="#setup">Setup</a> | <a href="#scripts">Scripts</a> | <a href="#test">Test</a> | <a href="#cookbook">Cookbook</a>
 </p>
-<h1 align="center">Datashare Playground</h1>
-
-A zero-dependencies series of bash scripts to interact with Datashare's index and queue. 
-
-## Test [![](https://github.com/icij/datashare-playground/actions/workflows/main.yml/badge.svg)](https://github.com/ICIJ/datashare-playground/actions)
-
-Developpers can run tests using [bats](https://github.com/bats-core/bats-core):
-
-```bash
-git submodules init # Install bats submodules
-export ELASTICSEARCH_URL=http://localhost:9200 # Change this with the URL of ElasticSearch 
-./test/bats/bin/bats -r test/units
-```
 
 ## Setup
 
@@ -77,6 +67,16 @@ Here are the main scripts available in this repository:
 │
 └── lib
     └── sync.sh # Sync this directory with another location with rsync
+```
+
+## Test 
+
+Developpers can run tests using [bats](https://github.com/bats-core/bats-core):
+
+```bash
+git submodules init # Install bats submodules
+export ELASTICSEARCH_URL=http://localhost:9200 # Change this with the URL of ElasticSearch 
+./test/bats/bin/bats -r test/units
 ```
 
 ## Cookbook
