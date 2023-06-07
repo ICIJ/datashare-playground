@@ -7,6 +7,15 @@
 
 A series of bash utilities to perform common operations on Datashare documents stored in ElasticSearch.
 
+## Test ![](https://github.com/icij/datashare-playground/actions/workflows/main.yml/badge.svg)
+
+Developpers can run tests using [bats](https://github.com/bats-core/bats-core):
+
+```
+git submodules init
+./test/bats/bin/bats -r test/units
+```
+
 ## Setup
 
 To run those scripts only needs to have access to the ElasticSearch URL which must be stored in an 
