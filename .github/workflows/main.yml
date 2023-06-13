@@ -14,6 +14,13 @@ jobs:
     services:
       elasticsearch:
         image: docker.elastic.co/elasticsearch/elasticsearch:7.9.1
+        options: >-
+          --health-cmd "curl http://localhost:9200/_cluster/health"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 9200:9200
         env:
           ES_JAVA_OPTS: -Xms256m -Xmx256m
           discovery.type: single-node
@@ -24,7 +31,8 @@ jobs:
           http.cors.allow-method: OPTIONS, HEAD, GET, POST, PUT, DELETE
           indices.query.bool.max_clause_count: 20000
     
-    container: ubuntu:22.04
+    env:
+      ELASTICSEARCH_URL: http://localhost:9200
     steps:
       - uses: actions/checkout@v3
         with:
@@ -32,3 +40,4 @@ jobs:
           
       - name: Run the tests with bats
         run: ./test/bats/bin/bats -r test/units/
+
