@@ -27,9 +27,10 @@ Here are the main scripts available in this repository:
 ├── elasticsearch
 │   │
 │   ├── document
-│   │   ├── count.sh  # Count documents under a given path
-│   │   ├── move.sh  # Move documents from a directory to another
-│   │   └── reindex.sh  # Reindex documents from a given index and under a specific directory
+│   │   ├── count.sh # Count documents under a given path
+│   │   ├── delete.sh # Delete documents under a given path
+│   │   ├── move.sh # Move documents from a directory to another
+│   │   └── reindex.sh # Reindex documents from a given index and under a specific directory
 │   │
 │   ├── duplicate
 │   │   ├── count.sh # Count duplicates
