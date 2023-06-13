@@ -23,7 +23,8 @@ jobs:
           http.cors.allow-origin: "*"
           http.cors.allow-method: OPTIONS, HEAD, GET, POST, PUT, DELETE
           indices.query.bool.max_clause_count: 20000
-          
+    
+    container: ubuntu:22.04
     steps:
       - uses: actions/checkout@v3
         with:
