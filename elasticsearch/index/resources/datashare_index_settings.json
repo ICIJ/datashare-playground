@@ -1,6 +1,6 @@
 {
   "index.mapping.total_fields.limit": 100000,
-  "index.number_of_shards" : 1,
+  "index.number_of_shards": 1,
   "index.query.default_field": [
     "content",
     "mentionNorm",
@@ -25,7 +25,10 @@
       },
       "folding": {
         "tokenizer": "standard",
-        "filter":  [ "lowercase", "asciifolding" ]
+        "filter": [
+          "lowercase",
+          "asciifolding"
+        ]
       }
     },
     "tokenizer": {
@@ -36,7 +39,9 @@
     "normalizer": {
       "keyword_lowercase": {
         "type": "custom",
-        "filter": ["lowercase"]
+        "filter": [
+          "lowercase"
+        ]
       }
     }
   }

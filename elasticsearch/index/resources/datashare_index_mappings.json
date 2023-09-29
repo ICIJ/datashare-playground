@@ -5,7 +5,7 @@
       "index_options": "offsets",
       "analyzer": "folding"
     },
-    "metadata" : {
+    "metadata": {
       "properties": {
         "tika_metadata_resourcename": {
           "type": "text",
@@ -27,6 +27,12 @@
       "type": "integer"
     },
     "path": {
+      "type": "keyword"
+    },
+    "title": {
+      "type": "keyword"
+    },
+    "titleNorm": {
       "type": "keyword"
     },
     "dirname": {
