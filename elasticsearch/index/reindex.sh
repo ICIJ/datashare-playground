@@ -19,6 +19,21 @@ body='{
       "query_string": {
         "query": "'"${query_string}"'" 
       }
+    },
+    "_source": {                                                                                                                                                                                                   
+      "excludes": [
+        "metadata.tika_metadata_x_*", 
+        "metadata.tika_metadata_unknown_tag_*", 
+        "metadata.tika_metadata_custom_*",
+        "metadata.tika_metadata_mboxparser_*",
+        "metadata.tika_metadata_message_raw_header_x_*",
+        "metadata.tika_metadata_message_raw_header_1*",
+        "metadata.tika_metadata_message_raw_header_2*",
+        "metadata.tika_metadata_message_raw_header_3*",
+        "metadata.tika_metadata_message_raw_header_4*",
+        "metadata.tika_metadata_message_raw_header_5*",
+        "metadata.tika_metadata_message_raw_header__*"
+      ] 
     }
   },
   "dest": {
