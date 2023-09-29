@@ -26,6 +26,7 @@ body='{
         "metadata.tika_metadata_unknown_tag_*", 
         "metadata.tika_metadata_custom_*",
         "metadata.tika_metadata_mboxparser_*",
+        "metadata.tika_metadata_xmpmm_*",
         "metadata.tika_metadata_message_raw_header_x_*",
         "metadata.tika_metadata_message_raw_header_1*",
         "metadata.tika_metadata_message_raw_header_2*",
