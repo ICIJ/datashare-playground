@@ -12,15 +12,14 @@ resources_dir="$script_dir"/resources
 
 if [[ $# -eq 2 ]]; then
   desired_version=$2
-  wget -P "$script_dir"/resources_dir https://github.com/ICIJ/datashare/releases/download/"${desired_version}"/datashare_index_settings.json \
+  resources_dir="$script_dir"/resources_tmp
+  wget -P "$resources_dir" https://github.com/ICIJ/datashare/releases/download/"${desired_version}"/datashare_index_settings.json \
   https://github.com/ICIJ/datashare/releases/download/"${desired_version}"/datashare_index_mappings.json
   if [[ $? -ne 0 ]]
     then
       echo "Could not download ES settings/mappings files. Aborting."
-      rm -rf "$resources_dir"/resources_dir
+      rm -rf "$resources_dir"
       exit 1
-    else
-      resources_dir="$script_dir"/resources_dir
   fi
 fi
 
@@ -30,4 +29,4 @@ settings_json=$resources_dir/datashare_index_settings.json
 body=$(jq --slurpfile mappings $mappings_json '{ "mappings": $mappings[0], "settings": . }' $settings_json)
 
 curl -XPUT "$ELASTICSEARCH_URL/$1" -H 'Content-Type: application/json' -d "$body" | jq
-rm -rf "$script_dir"/resources_dir
+rm -rf "$script_dir"/resources_tmp
