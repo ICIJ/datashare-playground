@@ -2,7 +2,6 @@ name: Datashare Playground - CI
 
 on:
   push:
-    branches: [ main ]
 
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
