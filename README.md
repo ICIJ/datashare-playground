@@ -128,6 +128,12 @@ This opperation might be useful if mapping or settings of the index changed.
 ./elasticsearch/index/create.sh ricecake-tmp
 ```
 
+**1'. Alternatively, you can create a `ricecake-tmp` empty index with the mappings/settings of the desired version:**
+
+```bash
+./elasticsearch/index/create.sh ricecake-tmp 17.1.1
+```
+
 **2. Reindex all documents (under "/" path) from `ricecake` under to `ricecake-tmp`:**
 
 ```bash
