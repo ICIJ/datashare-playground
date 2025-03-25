@@ -40,6 +40,7 @@ Here are the main scripts available in this repository:
 │   │   ├── clone.sh # Clone a given index into another
 │   │   ├── create.sh # Create an index using default Datashare settings
 │   │   ├── delete.sh # Delete an index
+│   │   ├── expunge_deletes.sh # Remove deleted docs from a given index
 │   │   ├── list.sh # Get all indices
 │   │   ├── number_of_replicas.sh # Get or change number of replicas for a given index
 │   │   ├── refresh_interval.sh # Get or change refresh interval for a given index
