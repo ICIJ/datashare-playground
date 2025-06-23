@@ -1,6 +1,6 @@
 # Datashare Playground [![](https://img.shields.io/github/actions/workflow/status/icij/datashare-playground/main.yml)](https://github.com/ICIJ/datashare-playground/actions)
 
-![Datashare: Better analyze information, in all its forms](https://i.imgur.com/9SPU1x2.png)
+![Datashare: Better analyze information, in all its forms](https://github.com/user-attachments/assets/56ef1e92-c01a-43c8-b1b5-8e98dbf37740)
 
 <p align="center">
 A zero-dependencies series of bash scripts to interact with Datashare's index and queue.<br />
