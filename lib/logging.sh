@@ -14,9 +14,10 @@ log_error() {
 }
 
 # Draw a horizontal line of specified length
-# Usage: draw_line <length>
+# Usage: draw_line [<length>]
+# If no length specified, uses terminal width
 draw_line() {
-    local length=$1
+    local length=${1:-$(tput cols 2>/dev/null || echo 80)}
     local line=""
     for ((i=0; i<length; i++)); do
         line+="─"

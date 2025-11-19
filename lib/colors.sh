@@ -4,6 +4,9 @@ Color_Off='\033[0m'       # Text Reset
 # Bold (no color)
 Bold='\033[1m'
 
+# Dimmed
+Dimmed='\033[2;90m'        # Dim + dark gray
+
 # Regular Colors
 Black='\033[0;30m'        # Black
 Red='\033[0;31m'          # Red
