@@ -13,17 +13,18 @@ target=$2
 
 log_title "Replace Index"
 
-# Prompt only if file descriptor fd is open and refers to a terminal.
-if [ -t 1 ] ; then
-  echo -e "${BRed}The \"${target}\" index will be deleted, this action cannot be undone 💣${Color_Off}" 
-  read -p "To confirm the replacement, please enter the name of the target index: " choice
+# Skip prompt if not running interactively
+if [ ! -t 1 ]; then
+    curl -sXDELETE "$ELASTICSEARCH_URL/$target" > /dev/null
+    $script_dir/clone.sh $source $target > /dev/null
+    log_info "Index '$target' replaced with '$source'"
 else
-  choice=$target
+    log_warn "The '$target' index will be deleted, this action cannot be undone"
+    if prompt_confirm "Do you want to replace '$target' with '$source'?"; then
+        curl -sXDELETE "$ELASTICSEARCH_URL/$target" > /dev/null
+        $script_dir/clone.sh $source $target > /dev/null
+        log_info "Index '$target' replaced with '$source'"
+    else
+        log_error "Replacement aborted."
+    fi
 fi
-case "$choice" in
-  $target )
-    curl -sXDELETE "$ELASTICSEARCH_URL/$target" | jq
-    $script_dir/clone.sh $source $target
-    ;;
-  * ) log_error "Invalid input: replacement aborted.";;
-esac

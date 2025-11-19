@@ -2,6 +2,7 @@
 _cli_lib_dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source $_cli_lib_dir/colors.sh
 source $_cli_lib_dir/logging.sh
+source $_cli_lib_dir/prompt.sh
 
 check_usage() {
   # Get the number of arguments passed to the main program
