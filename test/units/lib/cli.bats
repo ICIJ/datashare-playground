@@ -21,7 +21,7 @@ setup () {
 
 @test "throw an error when REDIS_URL is not defined" {
     bats_require_minimum_version 1.5.0
-
+    unset REDIS_URL
     run ! check_redis_url
 }
 
