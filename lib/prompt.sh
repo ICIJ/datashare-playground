@@ -16,7 +16,7 @@ prompt_confirm() {
     local question=$1
 
     echo -e "${Dimmed}$(draw_line)${Color_Off}"
-    echo -e "> ${Bold}$question${Color_Off} (y/n)"
+    echo -e "> ${Bold}$question${Color_Off} ${Dimmed}(y/n)${Color_Off}"
     echo "> "
     echo -e "${Dimmed}$(draw_line)${Color_Off}"
     # Move cursor up two lines and position after "> "
