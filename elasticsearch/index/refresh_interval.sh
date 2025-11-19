@@ -19,8 +19,8 @@ if [[ $# -gt 1 ]]; then
 else
   refresh_interval=$(curl -sXGET  "$esindex/_settings" | jq ".\"$index\".settings.index.refresh_interval // empty")
   if [[ -z "$refresh_interval" ]]; then
-    echo "The $index index has no refresh interval set. The default is 1s."
+    log_info "The $index index has no refresh interval set. The default is 1s."
   else
-    echo "The $index index has a refresh interval of $refresh_interval"
+    log_info "The $index index has a refresh interval of $refresh_interval"
   fi
 fi

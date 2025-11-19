@@ -2,7 +2,6 @@
 
 script_dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source $script_dir/../../lib/cli.sh
-source $script_dir/../../lib/colors.sh
 
 check_usage 2 '<source> <target>'
 check_env
@@ -19,10 +18,10 @@ if [ -t 1 ] ; then
 else
   choice=$target
 fi
-case "$choice" in 
-  $target ) 
+case "$choice" in
+  $target )
     curl -XDELETE "$ELASTICSEARCH_URL/$target" | jq
     $script_dir/clone.sh $source $target
     ;;
-  * ) echo "Invalid input: replacement aborted.";;
+  * ) log_error "Invalid input: replacement aborted.";;
 esac

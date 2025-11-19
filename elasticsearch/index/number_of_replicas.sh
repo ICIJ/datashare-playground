@@ -19,8 +19,8 @@ if [[ $# -gt 1 ]]; then
 else
   replicas=$(curl -sXGET  "$esindex/_settings" | jq ".\"$index\".settings.index.number_of_replicas // empty")
   if [[ -z "$replicas" ]]; then
-    echo "The $index index has no replicas number set"
+    log_info "The $index index has no replicas number set"
   else
-    echo "The $index index has $replicas replica(s)"
+    log_info "The $index index has $replicas replica(s)"
   fi
 fi

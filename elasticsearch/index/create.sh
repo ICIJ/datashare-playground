@@ -16,7 +16,7 @@ if [[ $# -eq 2 ]]; then
   if ! wget -P "$resources_dir" https://github.com/ICIJ/datashare/releases/download/"${desired_version}"/datashare_index_settings.json \
   https://github.com/ICIJ/datashare/releases/download/"${desired_version}"/datashare_index_mappings.json
   then
-    echo "Could not download ES settings/mappings files. Aborting."
+    log_error "Could not download ES settings/mappings files. Aborting."
     rm -rf "$resources_dir"
     exit 1
   fi
