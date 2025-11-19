@@ -9,6 +9,22 @@ progress_bar() {
     local width=${2:-20}
     local color=${3:-$Purple}
 
+    # Handle edge cases for percent
+    if [[ -z "$percent" || ! "$percent" =~ ^-?[0-9]+$ ]]; then
+        percent=0
+    fi
+    if [[ $percent -lt 0 ]]; then
+        percent=0
+    fi
+    if [[ $percent -gt 100 ]]; then
+        percent=100
+    fi
+
+    # Handle edge cases for width
+    if [[ ! "$width" =~ ^[0-9]+$ || $width -le 0 ]]; then
+        width=20
+    fi
+
     local filled=$((percent * width / 100))
     local empty=$((width - filled))
     local bar=""

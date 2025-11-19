@@ -47,6 +47,31 @@ setup () {
   assert_equal "$result" "h"
 }
 
+@test "truncate handles zero max width" {
+  result=$(truncate "hello" 0)
+  assert_equal "$result" ""
+}
+
+@test "truncate handles negative max width" {
+  result=$(truncate "hello" -5)
+  assert_equal "$result" ""
+}
+
+@test "truncate handles non-numeric max width" {
+  result=$(truncate "hello" "abc")
+  assert_equal "$result" "hello"
+}
+
+@test "truncate handles empty max width" {
+  result=$(truncate "hello" "")
+  assert_equal "$result" "hello"
+}
+
+@test "truncate handles max width of 4 with long string" {
+  result=$(truncate "hello world" 4)
+  assert_equal "$result" "h..."
+}
+
 # draw_line tests
 @test "draw_line creates line of specified length" {
   result=$(draw_line 5)
@@ -57,6 +82,27 @@ setup () {
 @test "draw_line creates line of default length" {
   result=$(draw_line)
   [[ "$result" == *"─"* ]]
+}
+
+@test "draw_line handles zero length" {
+  result=$(draw_line 0)
+  assert_equal "$result" ""
+}
+
+@test "draw_line handles negative length" {
+  result=$(draw_line -5)
+  assert_equal "$result" ""
+}
+
+@test "draw_line handles non-numeric length" {
+  result=$(draw_line "abc")
+  # Should use default terminal width
+  [[ "$result" == *"─"* ]]
+}
+
+@test "draw_line handles length of 1" {
+  result=$(draw_line 1)
+  assert_equal "$result" "─"
 }
 
 # format_duration_s tests
@@ -88,6 +134,21 @@ setup () {
 @test "format_duration_s handles null input" {
   result=$(format_duration_s "null")
   assert_equal "$result" "0s"
+}
+
+@test "format_duration_s handles negative input" {
+  result=$(format_duration_s -10)
+  assert_equal "$result" "0s"
+}
+
+@test "format_duration_s handles exactly 60 seconds" {
+  result=$(format_duration_s 60)
+  assert_equal "$result" "1m 0s"
+}
+
+@test "format_duration_s handles exactly 3600 seconds" {
+  result=$(format_duration_s 3600)
+  assert_equal "$result" "1h 0m"
 }
 
 # format_duration_ns tests

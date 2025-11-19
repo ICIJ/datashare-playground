@@ -7,7 +7,9 @@ term_width() {
     # Try tput first (works even in subshells if terminal exists)
     local width
     width=$(tput cols 2>/dev/null)
-    if [[ -n "$width" && "$width" -gt 0 ]]; then
+
+    # Validate: must be non-empty, numeric, and positive
+    if [[ -n "$width" && "$width" =~ ^[0-9]+$ && "$width" -gt 0 ]]; then
         echo "$width"
     else
         echo 80
@@ -23,6 +25,18 @@ truncate() {
 
     # Handle edge cases
     if [[ -z "$str" ]]; then
+        echo ""
+        return
+    fi
+
+    # Handle non-numeric max (including negatives treated specially)
+    if [[ ! "$max" =~ ^-?[0-9]+$ ]]; then
+        echo "$str"
+        return
+    fi
+
+    # Handle zero or negative max
+    if [[ $max -le 0 ]]; then
         echo ""
         return
     fi
@@ -44,6 +58,18 @@ truncate() {
 # If no length specified, uses terminal width
 draw_line() {
     local length=${1:-$(term_width)}
+
+    # Handle non-numeric length (but allow negatives to pass through)
+    if [[ ! "$length" =~ ^-?[0-9]+$ ]]; then
+        length=$(term_width)
+    fi
+
+    # Handle zero or negative length
+    if [[ $length -le 0 ]]; then
+        echo ""
+        return
+    fi
+
     local line=""
     for ((i=0; i<length; i++)); do
         line+="─"

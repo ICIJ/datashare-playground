@@ -41,3 +41,42 @@ setup () {
   filled_count=$(echo "$result" | grep -o "━" | wc -l)
   assert_equal "$filled_count" "20"
 }
+
+@test "progress_bar clamps negative percent to 0" {
+  result=$(progress_bar -10 10)
+  [[ "$result" == *"0%"* ]]
+  # Should have no filled chars
+  if [[ "$result" == *"━"* ]]; then
+    return 1
+  fi
+}
+
+@test "progress_bar clamps percent over 100 to 100" {
+  result=$(progress_bar 150 10)
+  [[ "$result" == *"100%"* ]]
+  filled_count=$(echo "$result" | grep -o "━" | wc -l)
+  assert_equal "$filled_count" "10"
+}
+
+@test "progress_bar handles empty percent" {
+  result=$(progress_bar "" 10)
+  [[ "$result" == *"0%"* ]]
+}
+
+@test "progress_bar handles non-numeric percent" {
+  result=$(progress_bar "abc" 10)
+  [[ "$result" == *"0%"* ]]
+}
+
+@test "progress_bar handles zero width by using default" {
+  result=$(progress_bar 50 0)
+  # Should use default width of 20
+  total_count=$(echo "$result" | grep -o "[━─]" | wc -l)
+  assert_equal "$total_count" "20"
+}
+
+@test "progress_bar handles negative width by using default" {
+  result=$(progress_bar 50 -5)
+  total_count=$(echo "$result" | grep -o "[━─]" | wc -l)
+  assert_equal "$total_count" "20"
+}
