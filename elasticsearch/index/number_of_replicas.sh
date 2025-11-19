@@ -11,6 +11,8 @@ check_elasticsearch_url
 index=$1
 esindex=$ELASTICSEARCH_URL/$index
 
+log_title "Number of Replicas"
+
 # More than one argument: set number of replicas
 if [[ $# -gt 1 ]]; then
   body='{ "index": { "number_of_replicas": '"${2}"' } }'

@@ -13,6 +13,8 @@ path=${2:-/}
 path=${path%/}
 query_string=${3:-'*:*'}
 
+log_title "Count Documents"
+
 body='{
   "query": {
     "bool" : {

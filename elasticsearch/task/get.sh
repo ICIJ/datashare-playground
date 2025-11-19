@@ -9,4 +9,7 @@ check_env
 check_elasticsearch_url
 
 task_id=$1
+
+log_title "Get Task"
+
 curl -sXGET "$ELASTICSEARCH_URL/_tasks/$task_id" | jq -C

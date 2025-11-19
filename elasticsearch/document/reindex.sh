@@ -12,6 +12,8 @@ source=$1
 target=$2
 path=${3%/};
 
+log_title "Reindex Documents"
+
 body='{
   "source": {
     "index": "'"${source}"'",

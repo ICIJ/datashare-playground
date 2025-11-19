@@ -11,4 +11,6 @@ target=${1:-'_all'}
 sort=${2:-'index'}
 format=${3:-'txt'}
 
+log_title "List Indices"
+
 curl -sXGET "$ELASTICSEARCH_URL/_cat/indices/$target?v&s=$sort&format=$format"

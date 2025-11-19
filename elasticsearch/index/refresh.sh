@@ -11,4 +11,6 @@ check_elasticsearch_url
 index=$1
 esindex=$ELASTICSEARCH_URL/$index
 
+log_title "Refresh Index"
+
 curl -sXPOST  "$esindex/_refresh" | jq

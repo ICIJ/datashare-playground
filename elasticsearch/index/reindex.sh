@@ -12,6 +12,8 @@ source=$1
 target=$2
 query_string=${3:-'*:*'}
 
+log_title "Reindex"
+
 body='{
   "source": {
     "index": "'"${source}"'",

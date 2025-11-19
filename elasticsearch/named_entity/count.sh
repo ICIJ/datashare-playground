@@ -11,6 +11,8 @@ check_elasticsearch_url
 index=$1
 query_string=${2:-'*:*'}
 
+log_title "Count Named Entities"
+
 body='{
   "query": {
     "bool" : {

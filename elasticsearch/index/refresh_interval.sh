@@ -11,6 +11,8 @@ check_elasticsearch_url
 index=$1
 esindex=$ELASTICSEARCH_URL/$index
 
+log_title "Refresh Interval"
+
 # More than one argument: set refresh interval
 if [[ $# -gt 1 ]]; then
   body='{ "index": { "refresh_interval": "'"${2}"'" } }'

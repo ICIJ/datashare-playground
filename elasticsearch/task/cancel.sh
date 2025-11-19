@@ -9,4 +9,7 @@ check_bins
 check_elasticsearch_url
 
 task_id=$1
+
+log_title "Cancel Task"
+
 curl -sXPOST "$ELASTICSEARCH_URL/_tasks/$task_id/_cancel" | jq

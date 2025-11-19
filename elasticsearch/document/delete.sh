@@ -12,6 +12,8 @@ index=$1
 path=${2:-/}
 query_string=${3:-'*:*'}
 
+log_title "Delete Documents"
+
 body='{
   "query": {
     "bool" : {

@@ -12,6 +12,8 @@ source=$1
 target=$2
 esindex=$ELASTICSEARCH_URL/$source
 
+log_title "Clone Index"
+
 curl -sXPUT  "$esindex/_settings" -H 'Content-Type: application/json' -d'{ "settings": { "index.blocks.write": true } }' | jq
 curl -sXPOST "$esindex/_clone/$target" -H 'Content-Type: application/json' -d'{ "settings": { "index.mapping.ignore_malformed": true, "index.blocks.write": false } }' | jq
 curl -sXPUT  "$esindex/_settings" -H 'Content-Type: application/json' -d'{ "settings": { "index.blocks.write": false } }' | jq

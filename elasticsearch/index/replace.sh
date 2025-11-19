@@ -11,6 +11,8 @@ check_elasticsearch_url
 source=$1
 target=$2
 
+log_title "Replace Index"
+
 # Prompt only if file descriptor fd is open and refers to a terminal.
 if [ -t 1 ] ; then
   echo -e "${BRed}The \"${target}\" index will be deleted, this action cannot be undone 💣${Color_Off}" 
@@ -20,7 +22,7 @@ else
 fi
 case "$choice" in
   $target )
-    curl -XDELETE "$ELASTICSEARCH_URL/$target" | jq
+    curl -sXDELETE "$ELASTICSEARCH_URL/$target" | jq
     $script_dir/clone.sh $source $target
     ;;
   * ) log_error "Invalid input: replacement aborted.";;

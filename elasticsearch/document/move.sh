@@ -12,6 +12,8 @@ index=$1
 path=${2%/};
 new_path=${3%/};
 
+log_title "Move Documents"
+
 # Script to be used in the update by query
 script='
   if (ctx._source.path != null) {
