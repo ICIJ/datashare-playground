@@ -12,3 +12,25 @@ log_warn() {
 log_error() {
     echo -e "${Red}[ERROR]${Color_Off} $1"
 }
+
+# Draw a horizontal line of specified length
+# Usage: draw_line <length>
+draw_line() {
+    local length=$1
+    local line=""
+    for ((i=0; i<length; i++)); do
+        line+="─"
+    done
+    echo "$line"
+}
+
+# Log a title with rounded box border
+# Usage: log_title <title>
+log_title() {
+    local title=$1
+    local length=$((${#title} + 2))
+    local line=$(draw_line "$length")
+    echo -e "╭${line}╮"
+    echo -e "│ ${Bold}${title}${Color_Off} │"
+    echo -e "╰${line}╯"
+}

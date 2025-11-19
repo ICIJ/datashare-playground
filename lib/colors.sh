@@ -1,6 +1,9 @@
 # Reset
 Color_Off='\033[0m'       # Text Reset
 
+# Bold (no color)
+Bold='\033[1m'
+
 # Regular Colors
 Black='\033[0;30m'        # Black
 Red='\033[0;31m'          # Red
