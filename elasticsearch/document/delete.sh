@@ -12,7 +12,9 @@ index=$1
 path=${2:-/}
 query_string=${3:-'*:*'}
 
-log_title "Delete Documents"
+log_title "Delete Documents: $index"
+
+log_kv "Path" "$path"
 
 body='{
   "query": {
@@ -20,17 +22,17 @@ body='{
       "must" : [
         {
           "query_string": {
-            "query": "'"${query_string}"'" 
+            "query": "'"${query_string}"'"
           }
         },
         {
-          "prefix": { 
+          "prefix": {
             "path": "'"${path}"'"
           }
         },
         {
-          "term" : { 
-            "type" : "Document" 
+          "term" : {
+            "type" : "Document"
           }
         }
       ]
@@ -38,4 +40,13 @@ body='{
   }
 }'
 
-curl -sXPOST "$ELASTICSEARCH_URL/$index/_delete_by_query" -H 'Content-Type: application/json' -d "$body"
+# Start async delete
+result=$(curl -sXPOST "$ELASTICSEARCH_URL/$index/_delete_by_query?wait_for_completion=false" -H 'Content-Type: application/json' -d "$body")
+task_id=$(echo "$result" | jq -r '.task')
+
+if [[ "$task_id" == "null" || -z "$task_id" ]]; then
+    log_error "Failed to start delete task"
+    exit 1
+fi
+
+monitor_es_task "$task_id" "Delete documents"

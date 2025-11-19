@@ -12,7 +12,7 @@ source=$1
 target=$2
 query_string=${3:-'*:*'}
 
-log_title "Reindex Duplicates"
+log_title "Reindex Duplicates: $source → $target"
 
 body='{
   "source": {
@@ -22,12 +22,12 @@ body='{
         "must" : [
           {
             "query_string": {
-              "query": "'"${query_string}"'" 
+              "query": "'"${query_string}"'"
             }
           },
           {
-            "term" : { 
-              "type" : "Duplicate" 
+            "term" : {
+              "type" : "Duplicate"
             }
           }
         ]
@@ -39,4 +39,13 @@ body='{
   }
 }'
 
-curl -sXPOST "$ELASTICSEARCH_URL/_reindex?wait_for_completion=false" -H 'Content-Type: application/json' -d "$body" | jq
+# Start async reindex
+result=$(curl -sXPOST "$ELASTICSEARCH_URL/_reindex?wait_for_completion=false" -H 'Content-Type: application/json' -d "$body")
+task_id=$(echo "$result" | jq -r '.task')
+
+if [[ "$task_id" == "null" || -z "$task_id" ]]; then
+    log_error "Failed to start reindex task"
+    exit 1
+fi
+
+monitor_es_task "$task_id" "Reindex duplicates"

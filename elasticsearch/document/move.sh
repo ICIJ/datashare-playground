@@ -12,12 +12,15 @@ index=$1
 path=${2%/};
 new_path=${3%/};
 
-log_title "Move Documents"
+log_title "Move Documents: $index"
+
+log_kv "From" "$path"
+log_kv "To" "$new_path"
 
 # Script to be used in the update by query
 script='
   if (ctx._source.path != null) {
-    ctx._source.path = ctx._source.path.replace(params.path, params.new_path); 
+    ctx._source.path = ctx._source.path.replace(params.path, params.new_path);
   }
 
   if (ctx._source.dirname != null) {
@@ -53,4 +56,13 @@ body='{
   }
 }'
 
-curl -sXPOST "$ELASTICSEARCH_URL/$index/_update_by_query?wait_for_completion=false" -H 'Content-Type: application/json' -d "$body" | jq
+# Start async update
+result=$(curl -sXPOST "$ELASTICSEARCH_URL/$index/_update_by_query?wait_for_completion=false" -H 'Content-Type: application/json' -d "$body")
+task_id=$(echo "$result" | jq -r '.task')
+
+if [[ "$task_id" == "null" || -z "$task_id" ]]; then
+    log_error "Failed to start move task"
+    exit 1
+fi
+
+monitor_es_task "$task_id" "Move documents"

@@ -11,6 +11,11 @@ check_elasticsearch_url
 index=$1
 esindex=$ELASTICSEARCH_URL/$index
 
-log_title "Refresh Index"
+log_title "Refresh Index: $index"
 
-curl -sXPOST  "$esindex/_refresh" | jq
+spinner_start "Refresh index"
+if ! curl -sXPOST "$esindex/_refresh" | jq -e '._shards.successful' > /dev/null; then
+    spinner_error "Refresh index"
+    exit 1
+fi
+spinner_stop "Index '$index' refreshed"

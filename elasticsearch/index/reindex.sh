@@ -12,20 +12,20 @@ source=$1
 target=$2
 query_string=${3:-'*:*'}
 
-log_title "Reindex"
+log_title "Reindex: $source → $target"
 
 body='{
   "source": {
     "index": "'"${source}"'",
     "query": {
       "query_string": {
-        "query": "'"${query_string}"'" 
+        "query": "'"${query_string}"'"
       }
     },
-    "_source": {                                                                                                                                                                                                   
+    "_source": {
       "excludes": [
-        "metadata.tika_metadata_x_*", 
-        "metadata.tika_metadata_unknown_tag_*", 
+        "metadata.tika_metadata_x_*",
+        "metadata.tika_metadata_unknown_tag_*",
         "metadata.tika_metadata_custom_*",
         "metadata.tika_metadata_mboxparser_*",
         "metadata.tika_metadata_xmpmm_*",
@@ -36,7 +36,7 @@ body='{
         "metadata.tika_metadata_message_raw_header_4*",
         "metadata.tika_metadata_message_raw_header_5*",
         "metadata.tika_metadata_message_raw_header__*"
-      ] 
+      ]
     }
   },
   "dest": {
@@ -44,4 +44,5 @@ body='{
   }
 }'
 
-curl -sXPOST "$ELASTICSEARCH_URL/_reindex?wait_for_completion=false" -H 'Content-Type: application/json' -d "$body" | jq
+# This outputs JSON with task id for the caller to use
+curl -sXPOST "$ELASTICSEARCH_URL/_reindex?wait_for_completion=false" -H 'Content-Type: application/json' -d "$body"

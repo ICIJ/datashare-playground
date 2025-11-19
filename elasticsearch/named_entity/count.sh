@@ -11,7 +11,7 @@ check_elasticsearch_url
 index=$1
 query_string=${2:-'*:*'}
 
-log_title "Count Named Entities"
+log_title "Count Named Entities: $index"
 
 body='{
   "query": {
@@ -19,12 +19,12 @@ body='{
       "must" : [
         {
           "query_string": {
-            "query": "'"${query_string}"'" 
+            "query": "'"${query_string}"'"
           }
         },
         {
-          "term" : { 
-            "type" : "NamedEntity" 
+          "term" : {
+            "type" : "NamedEntity"
           }
         }
       ]
@@ -32,4 +32,8 @@ body='{
   }
 }'
 
-curl -sXPOST "$ELASTICSEARCH_URL/$index/_count" -H 'Content-Type: application/json' -d "$body" | jq '.count'
+spinner_start "Count named entities"
+count=$(curl -sXPOST "$ELASTICSEARCH_URL/$index/_count" -H 'Content-Type: application/json' -d "$body" | jq '.count')
+spinner_stop "Count named entities"
+
+log_kv "Named Entities" "$count"

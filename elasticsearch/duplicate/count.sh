@@ -11,7 +11,7 @@ check_elasticsearch_url
 index=$1
 query_string=${2:-'*:*'}
 
-log_title "Count Duplicates"
+log_title "Count Duplicates: $index"
 
 body='{
   "query": {
@@ -19,12 +19,12 @@ body='{
       "must" : [
         {
           "query_string": {
-            "query": "'"${query_string}"'" 
+            "query": "'"${query_string}"'"
           }
         },
         {
-          "term" : { 
-            "type" : "Duplicate" 
+          "term" : {
+            "type" : "Duplicate"
           }
         }
       ]
@@ -32,4 +32,12 @@ body='{
   }
 }'
 
-curl -sXPOST "$ELASTICSEARCH_URL/$index/_count" -H 'Content-Type: application/json' -d "$body" | jq '.count'
+spinner_start "Count duplicates"
+count=$(curl -sXPOST "$ELASTICSEARCH_URL/$index/_count" -H 'Content-Type: application/json' -d "$body" | jq '.count')
+
+if [ -t 1 ]; then
+    spinner_stop "Count duplicates"
+    log_kv "Duplicates" "$count"
+else
+    echo "$count"
+fi

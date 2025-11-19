@@ -13,7 +13,7 @@ path=${2:-/}
 path=${path%/}
 query_string=${3:-'*:*'}
 
-log_title "Count Documents"
+log_title "Count Documents: $index"
 
 body='{
   "query": {
@@ -21,17 +21,17 @@ body='{
       "must" : [
         {
           "query_string": {
-            "query": "'"${query_string}"'" 
+            "query": "'"${query_string}"'"
           }
         },
         {
-          "prefix": { 
+          "prefix": {
             "path": "'"${path}"'"
           }
         },
         {
-          "term" : { 
-            "type" : "Document" 
+          "term" : {
+            "type" : "Document"
           }
         }
       ]
@@ -39,4 +39,15 @@ body='{
   }
 }'
 
-curl -sXPOST "$ELASTICSEARCH_URL/$index/_count" -H 'Content-Type: application/json' -d "$body" | jq '.count'
+if [ -t 1 ]; then
+    spinner_start "Count documents"
+fi
+
+count=$(curl -sXPOST "$ELASTICSEARCH_URL/$index/_count" -H 'Content-Type: application/json' -d "$body" | jq '.count')
+
+if [ -t 1 ]; then
+    spinner_stop "Count documents"
+    log_kv "Documents" "$count"
+else
+    echo "$count"
+fi
