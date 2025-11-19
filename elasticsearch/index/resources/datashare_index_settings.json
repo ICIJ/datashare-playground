@@ -14,16 +14,27 @@
     "metadata.tika_metadata_meta_author",
     "metadata.tika_metadata_subject",
     "metadata.tika_metadata_title",
+    "metadata.tika_metadata_resourcename",
     "name",
     "path",
+    "path.parts",
     "tags"
   ],
   "analysis": {
     "analyzer": {
       "path_analyzer": {
+        "type": "custom",
         "tokenizer": "path_tokenizer"
       },
+      "path_parts_analyzer": {
+        "type": "custom",
+        "tokenizer": "path_parts_tokenizer",
+        "filter": [
+          "lowercase"
+        ]
+      },
       "folding": {
+        "type": "custom",
         "tokenizer": "standard",
         "filter": [
           "lowercase",
@@ -33,7 +44,18 @@
     },
     "tokenizer": {
       "path_tokenizer": {
-        "type": "path_hierarchy"
+        "type": "path_hierarchy",
+        "delimiter": "/",
+        "replacement": "/",
+        "buffer_size": 1024,
+        "reverse": false,
+        "skip": 0
+      },
+      "path_parts_tokenizer": {
+        "type": "pattern",
+        "pattern": "[/\\\\. ]+",
+        "flags": "",
+        "group": -1
       }
     },
     "normalizer": {

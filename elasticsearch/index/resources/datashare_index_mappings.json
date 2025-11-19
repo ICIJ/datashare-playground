@@ -7,6 +7,9 @@
     },
     "metadata": {
       "properties": {
+        "emailHeaderField": {
+          "enabled": false
+        },
         "tika_metadata_resourcename": {
           "type": "text",
           "analyzer": "folding",
@@ -27,7 +30,13 @@
       "type": "integer"
     },
     "path": {
-      "type": "keyword"
+      "type": "keyword",
+      "fields": {
+        "parts": {
+          "type": "text",
+          "analyzer": "path_parts_analyzer"
+        }
+      }
     },
     "title": {
       "type": "keyword"
@@ -82,7 +91,10 @@
     "join": {
       "type": "join",
       "relations": {
-        "Document": "NamedEntity"
+        "Document": [
+          "NamedEntity",
+          "Duplicate"
+        ]
       }
     },
     "mention": {
