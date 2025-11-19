@@ -9,8 +9,8 @@ A zero-dependencies series of bash scripts to interact with Datashare's index an
 
 ## Setup
 
-To run those scripts only needs to have access to the ElasticSearch URL which must be stored in an 
-environement variable called `ELASTICSEARCH_URL`. Same logic applies to `REDIS_URL`. To avoid setting up 
+To run those scripts only needs to have access to the ElasticSearch URL which must be stored in an
+environement variable called `ELASTICSEARCH_URL`. Same logic applies to `REDIS_URL`. To avoid setting up
 this variable everytime you use those script, you can store in a `.env` at the root of this directory:
 
 ```bash
@@ -25,57 +25,62 @@ Here are the main scripts available in this repository:
 ```bash
 .
 ├── elasticsearch
-│   │
-│   ├── document
-│   │   ├── count.sh # Count documents under a given path
-│   │   ├── delete.sh # Delete documents under a given path
-│   │   ├── move.sh # Move documents from a directory to another
-│   │   └── reindex.sh # Reindex documents from a given index and under a specific directory
-│   │
-│   ├── duplicate
-│   │   ├── count.sh # Count duplicates
-│   │   └── reindex.sh # Reindex duplicates from a given index
-│   │
-│   ├── index
-│   │   ├── clone.sh # Clone a given index into another
-│   │   ├── create.sh # Create an index using default Datashare settings
-│   │   ├── delete.sh # Delete an index
-│   │   ├── list.sh # Get all indices
-│   │   ├── number_of_replicas.sh # Get or change number of replicas for a given index
-│   │   ├── refresh_interval.sh # Get or change refresh interval for a given index
-│   │   ├── refresh.sh # Refresh a given index
-│   │   ├── reindex.sh # Reindex everything from a given index
-│   │   └── replace.sh # Replace an index by another one
-│   │
-│   ├── named_entity
-│   │   ├── count.sh # Count named entities
-│   │   └── reindex.sh # Reindex named entities from a given index
-│   │
-│   └── task
-│       ├── cancel.sh # Cancel a given task
-│       ├── get.sh # Get a given task status
-│       ├── list.sh # Get all tasks
-│       └── watch.sh # Watch a given task status
+│   │
+│   ├── document
+│   │   ├── count.sh # Count documents under a given path
+│   │   ├── delete.sh # Delete documents under a given path
+│   │   ├── move.sh # Move documents from a directory to another
+│   │   └── reindex.sh # Reindex documents from a given index and under a specific directory
+│   │
+│   ├── duplicate
+│   │   ├── count.sh # Count duplicates
+│   │   └── reindex.sh # Reindex duplicates from a given index
+│   │
+│   ├── index
+│   │   ├── clone.sh # Clone a given index into another
+│   │   ├── create.sh # Create an index using default Datashare settings
+│   │   ├── delete.sh # Delete an index
+│   │   ├── list.sh # Get all indices
+│   │   ├── number_of_replicas.sh # Get or change number of replicas for a given index
+│   │   ├── refresh.sh # Refresh a given index
+│   │   ├── refresh_interval.sh # Get or change refresh interval for a given index
+│   │   ├── reindex.sh # Reindex everything from a given index
+│   │   ├── replace.sh # Replace an index by another one
+│   │   └── safe_reindex.sh # Safely reindex an index with backup and verification
+│   │
+│   ├── named_entity
+│   │   ├── count.sh # Count named entities
+│   │   └── reindex.sh # Reindex named entities from a given index
+│   │
+│   └── task
+│       ├── cancel.sh # Cancel a given task
+│       ├── get.sh # Get a given task status
+│       ├── list.sh # Get all tasks
+│       └── watch.sh # Watch a given task status
 │
 ├── redis
-│   │
-│   ├── queue
-│   │   └── rpush.sh # Insert stdin rows to a given queue
 │   │
-│   └── report
-│       ├── hdel.sh # Remove stdin rows from a given report map
-│       └── hset.sh # Insert stdin rows to a given report map
+│   ├── queue
+│   │   └── rpush.sh # Insert stdin rows to a given queue
+│   │
+│   └── report
+│       ├── hdel.sh # Remove stdin rows from a given report map
+│       └── hset.sh # Insert stdin rows to a given report map
 │
 └── lib
-    └── sync.sh # Sync this directory with another location with rsync
+    ├── cli.sh # Main CLI library (sources all other libs)
+    ├── colors.sh # ANSI color definitions
+    ├── logging.sh # Logging functions (spinners, titles, log levels)
+    ├── prompt.sh # User prompt functions
+    └── sync.sh # Sync this directory with another location with rsync
 ```
 
-## Test 
+## Test
 
 Developpers can run tests using [bats](https://github.com/bats-core/bats-core):
 
 ```bash
-export ELASTICSEARCH_URL=http://localhost:9200 # Change this with the URL of ElasticSearch 
+export ELASTICSEARCH_URL=http://localhost:9200 # Change this with the URL of ElasticSearch
 make tests
 ```
 
@@ -119,7 +124,7 @@ An example showing how to copy documents from the `kimchi` index to the `miso` w
 
 ### Re-index an index
 
-This opperation might be useful if mapping or settings of the index changed. 
+This opperation might be useful if mapping or settings of the index changed.
 
 
 **1. Create a `ricecake-tmp` empty index:**
