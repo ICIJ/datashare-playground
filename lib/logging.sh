@@ -1,5 +1,5 @@
 # Logging functions
-# Requires colors.sh to be sourced first
+# Requires colors.sh and format.sh to be sourced first
 
 # Task list for organized output
 _TASK_HEADER=""
@@ -147,18 +147,6 @@ monitor_es_task() {
         fi
         sleep 2
     done
-}
-
-# Draw a horizontal line of specified length
-# Usage: draw_line [<length>]
-# If no length specified, uses terminal width
-draw_line() {
-    local length=${1:-$(tput cols 2>/dev/null || echo 80)}
-    local line=""
-    for ((i=0; i<length; i++)); do
-        line+="─"
-    done
-    echo "$line"
 }
 
 # Log a title/step header with rounded box

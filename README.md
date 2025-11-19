@@ -70,8 +70,11 @@ Here are the main scripts available in this repository:
 └── lib
     ├── cli.sh # Main CLI library (sources all other libs)
     ├── colors.sh # ANSI color definitions
+    ├── format.sh # Text formatting (truncate, duration, status, draw_line)
     ├── logging.sh # Logging functions (spinners, titles, log levels)
+    ├── progress.sh # Progress bar functions
     ├── prompt.sh # User prompt functions
+    ├── table.sh # Table formatting (header, row)
     └── sync.sh # Sync this directory with another location with rsync
 ```
 

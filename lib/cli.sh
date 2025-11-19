@@ -1,8 +1,11 @@
 # Get the directory of this script
 _cli_lib_dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source $_cli_lib_dir/colors.sh
+source $_cli_lib_dir/format.sh
 source $_cli_lib_dir/logging.sh
 source $_cli_lib_dir/prompt.sh
+source $_cli_lib_dir/table.sh
+source $_cli_lib_dir/progress.sh
 
 check_usage() {
   # Get the number of arguments passed to the main program
