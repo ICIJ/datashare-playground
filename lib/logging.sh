@@ -25,8 +25,12 @@ draw_line() {
 }
 
 # Log a title with rounded box border
+# Only displays if running interactively (stdout is a terminal)
 # Usage: log_title <title>
 log_title() {
+    # Skip if not running interactively
+    [ -t 1 ] || return 0
+
     local title=$1
     local length=$((${#title} + 2))
     local line=$(draw_line "$length")
