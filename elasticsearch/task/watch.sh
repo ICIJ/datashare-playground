@@ -20,15 +20,17 @@ response=$(task_fetch "$task_id") || {
     exit 1
 }
 
-# Count lines in task_display output for clearing
-task_parse "$response"
-display_lines=$(task_display "$task_id" "$TASK_COMPLETED" "$TASK_NODE" "$TASK_ACTION" \
-    "$TASK_START_TIME" "$TASK_DURATION" "$TASK_TOTAL" "$TASK_CREATED" \
-    "$TASK_UPDATED" "$TASK_DELETED" "$TASK_FAILURES" "$TASK_PERCENT" | wc -l)
+# Hide cursor for cleaner display
+tput civis 2>/dev/null || true
+
+# Trap to ensure cursor is restored on exit
+trap 'tput cnorm 2>/dev/null || true; echo' EXIT INT TERM
 
 # Watch loop
 first_run=true
+display_lines=0
 while true; do
+    # Fetch and prepare output BEFORE clearing screen
     response=$(task_fetch "$task_id") || {
         echo ""
         log_error "Error fetching task status"
@@ -37,19 +39,26 @@ while true; do
 
     task_parse "$response"
 
-    # Clear previous output (except on first run)
+    # Prepare complete output buffer
+    output=$(task_display "$task_id" "$TASK_COMPLETED" "$TASK_NODE" "$TASK_ACTION" \
+        "$TASK_START_TIME" "$TASK_DURATION" "$TASK_TOTAL" "$TASK_CREATED" \
+        "$TASK_UPDATED" "$TASK_DELETED" "$TASK_FAILURES" "$TASK_PERCENT")
+
+    # Count lines properly (including last line without newline)
+    new_display_lines=$(printf "%s" "$output" | grep -c "^" || echo 0)
+
+    # Now do the clear and redraw atomically
     if [[ "$first_run" == false ]]; then
-        # Move cursor up and clear lines
-        for ((i=0; i<display_lines; i++)); do
-            echo -ne "\033[A\033[K"
-        done
+        # Use ANSI escape to move cursor up N lines in one operation
+        printf "\033[%dA" "$display_lines"
+        # Clear from cursor to end of screen
+        printf "\033[J"
     fi
     first_run=false
 
-    # Display task table
-    task_display "$task_id" "$TASK_COMPLETED" "$TASK_NODE" "$TASK_ACTION" \
-        "$TASK_START_TIME" "$TASK_DURATION" "$TASK_TOTAL" "$TASK_CREATED" \
-        "$TASK_UPDATED" "$TASK_DELETED" "$TASK_FAILURES" "$TASK_PERCENT"
+    # Display the pre-rendered output
+    printf "%s\n" "$output"
+    display_lines=$new_display_lines
 
     sleep "$interval"
 done
