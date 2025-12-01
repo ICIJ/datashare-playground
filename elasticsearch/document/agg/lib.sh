@@ -28,6 +28,11 @@ agg_query() {
               "term" : {
                 "type" : "Document"
               }
+            },
+            {
+              "exists": {
+                "field": "'"${field}"'"
+              }
             }
           ]
         }
@@ -70,6 +75,11 @@ agg_count_query() {
             {
               "term" : {
                 "type" : "Document"
+              }
+            },
+            {
+              "exists": {
+                "field": "'"${field}"'"
               }
             }
           ]

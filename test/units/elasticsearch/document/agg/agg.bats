@@ -156,3 +156,23 @@ teardown() {
     result=$(./elasticsearch/document/agg/max.sh $TEST_INDEX "metadata.tika_metadata_xmptpg_npages")
     assert_equal "$result" "40"
 }
+
+# Missing field tests
+
+@test "sum: excludes documents without the field" {
+    # Add a document without contentLength
+    curl -sXPOST $ELASTICSEARCH_URL/$TEST_INDEX/_doc/no_content -d'{ "name": "no_content", "path": "/", "type": "Document" }' -H "Content-Type: application/json" > /dev/null
+    curl -sXPOST $ELASTICSEARCH_URL/$TEST_INDEX/_refresh > /dev/null
+    # Sum should still be 1000 (ignoring the doc without contentLength)
+    result=$(./elasticsearch/document/agg/sum.sh $TEST_INDEX contentLength)
+    assert_equal "$result" "1000"
+}
+
+@test "count: excludes documents without the field" {
+    # Add a document without contentLength
+    curl -sXPOST $ELASTICSEARCH_URL/$TEST_INDEX/_doc/no_content2 -d'{ "name": "no_content2", "path": "/", "type": "Document" }' -H "Content-Type: application/json" > /dev/null
+    curl -sXPOST $ELASTICSEARCH_URL/$TEST_INDEX/_refresh > /dev/null
+    # Count should still be 4 (ignoring docs without contentLength)
+    result=$(./elasticsearch/document/agg/count.sh $TEST_INDEX contentLength)
+    assert_equal "$result" "4"
+}
