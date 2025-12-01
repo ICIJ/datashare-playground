@@ -44,17 +44,17 @@ teardown() {
 
 @test "sum: can sum a field" {
     result=$(./elasticsearch/document/agg/sum.sh $TEST_INDEX contentLength)
-    assert_equal "$result" "1000"
+    [[ "$result" == "1000" || "$result" == "1000.0" ]]
 }
 
 @test "sum: can sum a field with path filter" {
     result=$(./elasticsearch/document/agg/sum.sh $TEST_INDEX contentLength /dish)
-    assert_equal "$result" "700"
+    [[ "$result" == "700" || "$result" == "700.0" ]]
 }
 
 @test "sum: can sum a field with query string" {
     result=$(./elasticsearch/document/agg/sum.sh $TEST_INDEX contentLength / "name:kimchi")
-    assert_equal "$result" "100"
+    [[ "$result" == "100" || "$result" == "100.0" ]]
 }
 
 # avg.sh tests
@@ -88,12 +88,12 @@ teardown() {
 
 @test "min: can get minimum of a field" {
     result=$(./elasticsearch/document/agg/min.sh $TEST_INDEX contentLength)
-    assert_equal "$result" "100"
+    [[ "$result" == "100" || "$result" == "100.0" ]]
 }
 
 @test "min: can get minimum with path filter" {
     result=$(./elasticsearch/document/agg/min.sh $TEST_INDEX contentLength /dish)
-    assert_equal "$result" "300"
+    [[ "$result" == "300" || "$result" == "300.0" ]]
 }
 
 # max.sh tests
@@ -105,12 +105,12 @@ teardown() {
 
 @test "max: can get maximum of a field" {
     result=$(./elasticsearch/document/agg/max.sh $TEST_INDEX contentLength)
-    assert_equal "$result" "400"
+    [[ "$result" == "400" || "$result" == "400.0" ]]
 }
 
 @test "max: can get maximum with path filter" {
     result=$(./elasticsearch/document/agg/max.sh $TEST_INDEX contentLength /)
-    assert_equal "$result" "400"
+    [[ "$result" == "400" || "$result" == "400.0" ]]
 }
 
 # count.sh tests
@@ -139,7 +139,7 @@ teardown() {
 
 @test "sum: can sum a nested field with dot notation" {
     result=$(./elasticsearch/document/agg/sum.sh $TEST_INDEX "metadata.tika_metadata_xmptpg_npages")
-    assert_equal "$result" "100"
+    [[ "$result" == "100" || "$result" == "100.0" ]]
 }
 
 @test "avg: can average a nested field with dot notation" {
@@ -149,12 +149,12 @@ teardown() {
 
 @test "min: can get minimum of a nested field" {
     result=$(./elasticsearch/document/agg/min.sh $TEST_INDEX "metadata.tika_metadata_xmptpg_npages")
-    assert_equal "$result" "10"
+    [[ "$result" == "10" || "$result" == "10.0" ]]
 }
 
 @test "max: can get maximum of a nested field" {
     result=$(./elasticsearch/document/agg/max.sh $TEST_INDEX "metadata.tika_metadata_xmptpg_npages")
-    assert_equal "$result" "40"
+    [[ "$result" == "40" || "$result" == "40.0" ]]
 }
 
 # Missing field tests
@@ -165,7 +165,7 @@ teardown() {
     curl -sXPOST $ELASTICSEARCH_URL/$TEST_INDEX/_refresh > /dev/null
     # Sum should still be 1000 (ignoring the doc without contentLength)
     result=$(./elasticsearch/document/agg/sum.sh $TEST_INDEX contentLength)
-    assert_equal "$result" "1000"
+    [[ "$result" == "1000" || "$result" == "1000.0" ]]
 }
 
 @test "count: excludes documents without the field" {
