@@ -19,10 +19,10 @@ setup() {
   local body=$(jq --slurpfile mappings $resources_dir/datashare_index_mappings.json \
     '{ "mappings": $mappings[0], "settings": . }' $resources_dir/datashare_index_settings.json)
   curl -sXPUT "$ELASTICSEARCH_URL/$TEST_INDEX" -H "$H_CONTENT_TYPE" -d "$body" > /dev/null
-  curl -sXPOST $ELASTICSEARCH_URL/$TEST_INDEX/_doc/0 -d'{ "name": "kimchi", "path": "/", "type": "Document", "contentLength": 100 }' -H "$H_CONTENT_TYPE" > /dev/null
-  curl -sXPOST $ELASTICSEARCH_URL/$TEST_INDEX/_doc/1 -d'{ "name": "tteokbokki", "path": "/", "type": "Document", "contentLength": 200 }' -H "$H_CONTENT_TYPE" > /dev/null
-  curl -sXPOST $ELASTICSEARCH_URL/$TEST_INDEX/_doc/2 -d'{ "name": "bulgogi", "path": "/dish", "type": "Document", "contentLength": 300 }' -H "$H_CONTENT_TYPE" > /dev/null
-  curl -sXPOST $ELASTICSEARCH_URL/$TEST_INDEX/_doc/3 -d'{ "name": "bibimbap", "path": "/dish", "type": "Document", "contentLength": 400 }' -H "$H_CONTENT_TYPE" > /dev/null
+  curl -sXPOST $ELASTICSEARCH_URL/$TEST_INDEX/_doc/0 -d'{ "name": "kimchi", "path": "/", "type": "Document", "contentLength": 100, "metadata": { "tika_metadata_xmptpg_npages": 10 } }' -H "$H_CONTENT_TYPE" > /dev/null
+  curl -sXPOST $ELASTICSEARCH_URL/$TEST_INDEX/_doc/1 -d'{ "name": "tteokbokki", "path": "/", "type": "Document", "contentLength": 200, "metadata": { "tika_metadata_xmptpg_npages": 20 } }' -H "$H_CONTENT_TYPE" > /dev/null
+  curl -sXPOST $ELASTICSEARCH_URL/$TEST_INDEX/_doc/2 -d'{ "name": "bulgogi", "path": "/dish", "type": "Document", "contentLength": 300, "metadata": { "tika_metadata_xmptpg_npages": 30 } }' -H "$H_CONTENT_TYPE" > /dev/null
+  curl -sXPOST $ELASTICSEARCH_URL/$TEST_INDEX/_doc/3 -d'{ "name": "bibimbap", "path": "/dish", "type": "Document", "contentLength": 400, "metadata": { "tika_metadata_xmptpg_npages": 40 } }' -H "$H_CONTENT_TYPE" > /dev/null
   curl -sXPOST $ELASTICSEARCH_URL/$TEST_INDEX/_refresh > /dev/null
 }
 
@@ -133,4 +133,26 @@ teardown() {
 @test "count: can count field values with query string" {
     result=$(./elasticsearch/document/agg/count.sh $TEST_INDEX contentLength / "name:bulgogi")
     assert_equal "$result" "1"
+}
+
+# Nested field tests
+
+@test "sum: can sum a nested field with dot notation" {
+    result=$(./elasticsearch/document/agg/sum.sh $TEST_INDEX "metadata.tika_metadata_xmptpg_npages")
+    assert_equal "$result" "100"
+}
+
+@test "avg: can average a nested field with dot notation" {
+    result=$(./elasticsearch/document/agg/avg.sh $TEST_INDEX "metadata.tika_metadata_xmptpg_npages")
+    assert_equal "$result" "25"
+}
+
+@test "min: can get minimum of a nested field" {
+    result=$(./elasticsearch/document/agg/min.sh $TEST_INDEX "metadata.tika_metadata_xmptpg_npages")
+    assert_equal "$result" "10"
+}
+
+@test "max: can get maximum of a nested field" {
+    result=$(./elasticsearch/document/agg/max.sh $TEST_INDEX "metadata.tika_metadata_xmptpg_npages")
+    assert_equal "$result" "40"
 }
