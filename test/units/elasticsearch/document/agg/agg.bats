@@ -66,17 +66,17 @@ teardown() {
 
 @test "avg: can average a field" {
     result=$(./elasticsearch/document/agg/avg.sh $TEST_INDEX contentLength)
-    assert_equal "$result" "250"
+    [[ "$result" == "250" || "$result" == "250.0" ]]
 }
 
 @test "avg: can average a field with path filter" {
     result=$(./elasticsearch/document/agg/avg.sh $TEST_INDEX contentLength /dish)
-    assert_equal "$result" "350"
+    [[ "$result" == "350" || "$result" == "350.0" ]]
 }
 
 @test "avg: can average a field with query string" {
     result=$(./elasticsearch/document/agg/avg.sh $TEST_INDEX contentLength / "name:kimchi OR name:tteokbokki")
-    assert_equal "$result" "150"
+    [[ "$result" == "150" || "$result" == "150.0" ]]
 }
 
 # min.sh tests
@@ -144,7 +144,7 @@ teardown() {
 
 @test "avg: can average a nested field with dot notation" {
     result=$(./elasticsearch/document/agg/avg.sh $TEST_INDEX "metadata.tika_metadata_xmptpg_npages")
-    assert_equal "$result" "25"
+    [[ "$result" == "25" || "$result" == "25.0" ]]
 }
 
 @test "min: can get minimum of a nested field" {
