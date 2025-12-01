@@ -21,7 +21,18 @@ if [ -t 1 ]; then
     spinner_start "Calculating average"
 fi
 
-result=$(agg_query "$index" "$field" "avg" "$path" "$query_string")
+error_output=$(mktemp)
+if ! result=$(agg_query "$index" "$field" "avg" "$path" "$query_string" 2>"$error_output"); then
+    if [ -t 1 ]; then
+        spinner_error "Calculating average"
+        cat "$error_output" >&2
+    else
+        cat "$error_output" >&2
+    fi
+    rm -f "$error_output"
+    exit 1
+fi
+rm -f "$error_output"
 
 if [ -t 1 ]; then
     spinner_stop "Calculating average"

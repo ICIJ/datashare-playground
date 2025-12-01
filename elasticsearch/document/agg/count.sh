@@ -21,7 +21,18 @@ if [ -t 1 ]; then
     spinner_start "Counting values"
 fi
 
-result=$(agg_count_query "$index" "$field" "$path" "$query_string")
+error_output=$(mktemp)
+if ! result=$(agg_count_query "$index" "$field" "$path" "$query_string" 2>"$error_output"); then
+    if [ -t 1 ]; then
+        spinner_error "Counting values"
+        cat "$error_output" >&2
+    else
+        cat "$error_output" >&2
+    fi
+    rm -f "$error_output"
+    exit 1
+fi
+rm -f "$error_output"
 
 if [ -t 1 ]; then
     spinner_stop "Counting values"
