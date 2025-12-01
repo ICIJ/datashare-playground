@@ -27,6 +27,12 @@ Here are the main scripts available in this repository:
 ├── elasticsearch
 │   │
 │   ├── document
+│   │   ├── agg
+│   │   │   ├── avg.sh # Average of a field's values
+│   │   │   ├── count.sh # Count of non-null field values
+│   │   │   ├── max.sh # Maximum value of a field
+│   │   │   ├── min.sh # Minimum value of a field
+│   │   │   └── sum.sh # Sum of a field's values
 │   │   ├── count.sh # Count documents under a given path
 │   │   ├── delete.sh # Delete documents under a given path
 │   │   ├── move.sh # Move documents from a directory to another

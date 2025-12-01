@@ -1,18 +1,24 @@
-export ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-http://elasticsearch:9200}
-
 setup() {
   load ../../../test_helper/bats-assert/load
   load ../../../test_helper/bats-support/load
-  
+
+  # Source .env to get ELASTICSEARCH_URL
+  if [[ -f .env ]]; then
+    source .env
+  fi
+  export ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-http://elasticsearch:9200}
+
   TEST_INDEX_FOO="bats.index.create.from.version.foo"
   VERSION="17.1.0"
 
   H_CONTENT_TYPE="Content-Type: application/json"
+
+  # Cleanup any existing test index
+  curl -sXDELETE "$ELASTICSEARCH_URL/$TEST_INDEX_FOO" > /dev/null 2>&1 || true
 }
 
-
 teardown() {
-  curl -sXDELETE $ELASTICSEARCH_URL/$TEST_INDEX_FOO > /dev/null
+  curl -sXDELETE "$ELASTICSEARCH_URL/$TEST_INDEX_FOO" > /dev/null 2>&1 || true
 }
 
 

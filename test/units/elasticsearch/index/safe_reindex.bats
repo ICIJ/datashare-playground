@@ -1,22 +1,33 @@
-export ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-http://elasticsearch:9200}
-
 setup() {
   load ../../../test_helper/bats-assert/load
   load ../../../test_helper/bats-support/load
+
+  # Source .env to get ELASTICSEARCH_URL
+  if [[ -f .env ]]; then
+    source .env
+  fi
+  export ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-http://elasticsearch:9200}
 
   TEST_INDEX="bats.index.safe_reindex"
 
   H_CONTENT_TYPE="Content-Type: application/json"
 
-  # Create test index with some documents
-  command ./elasticsearch/index/create.sh $TEST_INDEX
+  # Cleanup any existing test index
+  curl -sXDELETE "$ELASTICSEARCH_URL/$TEST_INDEX" > /dev/null 2>&1 || true
+  curl -sXDELETE "$ELASTICSEARCH_URL/${TEST_INDEX}_reindex_temp" > /dev/null 2>&1 || true
 
-  curl -sXPOST $ELASTICSEARCH_URL/$TEST_INDEX/_doc/1 -d'{ "name": "doc1", "path": "/test", "type": "Document" }' -H "$H_CONTENT_TYPE" > /dev/null
-  curl -sXPOST $ELASTICSEARCH_URL/$TEST_INDEX/_doc/2 -d'{ "name": "doc2", "path": "/test", "type": "Document" }' -H "$H_CONTENT_TYPE" > /dev/null
-  curl -sXPOST $ELASTICSEARCH_URL/$TEST_INDEX/_doc/3 -d'{ "name": "doc3", "path": "/other", "type": "Document" }' -H "$H_CONTENT_TYPE" > /dev/null
+  # Create index directly with curl using Datashare mappings
+  local resources_dir="./elasticsearch/index/resources"
+  local body=$(jq --slurpfile mappings $resources_dir/datashare_index_mappings.json \
+    '{ "mappings": $mappings[0], "settings": . }' $resources_dir/datashare_index_settings.json)
+  curl -sXPUT "$ELASTICSEARCH_URL/$TEST_INDEX" -H "$H_CONTENT_TYPE" -d "$body" > /dev/null
+
+  curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_doc/1" -d'{ "name": "doc1", "path": "/test", "type": "Document" }' -H "$H_CONTENT_TYPE" > /dev/null
+  curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_doc/2" -d'{ "name": "doc2", "path": "/test", "type": "Document" }' -H "$H_CONTENT_TYPE" > /dev/null
+  curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_doc/3" -d'{ "name": "doc3", "path": "/other", "type": "Document" }' -H "$H_CONTENT_TYPE" > /dev/null
 
   # Refresh to make documents searchable
-  curl -sXPOST $ELASTICSEARCH_URL/$TEST_INDEX/_refresh > /dev/null
+  curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_refresh" > /dev/null
 }
 
 
