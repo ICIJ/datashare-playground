@@ -9,7 +9,7 @@ concurrency:
 
 jobs:
   container-test-job:
-    runs-on: ubuntu-latest  
+    runs-on: ubuntu-latest
     services:
       elasticsearch:
         image: docker.elastic.co/elasticsearch/elasticsearch:7.9.1
@@ -29,9 +29,19 @@ jobs:
           http.cors.allow-origin: "*"
           http.cors.allow-methods: OPTIONS, HEAD, GET, POST, PUT, DELETE
           indices.query.bool.max_clause_count: 20000
-    
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
     env:
       ELASTICSEARCH_URL: http://localhost:9200
+      REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v3
         with:
