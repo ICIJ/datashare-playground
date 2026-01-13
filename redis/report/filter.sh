@@ -57,7 +57,7 @@ while true; do
 
   # Count fields (every other line after cursor, starting at index 1)
   for ((i = 1; i < ${#lines[@]}; i += 2)); do
-    [[ -n "${lines[i]}" ]] && ((total_count++))
+    [[ -n "${lines[i]}" ]] && ((++total_count))
   done
   printf "\rCounting: %d" "$total_count"
 
@@ -88,7 +88,7 @@ while true; do
     [[ -z "$field" ]] && continue
 
     batch+=("$field")
-    ((deleted++))
+    ((++deleted))
 
     if ((${#batch[@]} >= batch_size)); then
       hdel_batch "$report_name" "${batch[@]}"
