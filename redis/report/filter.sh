@@ -33,7 +33,7 @@ hdel_batch() {
   shift 1
   local values=("$@")
   local joined_values=$(printf '"%s" ' "${values[@]}")
-  echo "HDEL $key_name ${joined_values}" | $redis_cli > /dev/null 2>&1
+  echo "HDEL $key_name ${joined_values}" | $redis_cli > /dev/null 2>&1 || true
 }
 
 show_progress() {
@@ -83,7 +83,9 @@ while true; do
     # Extract fields (every other line after cursor, starting at index 1)
     batch=()
     for ((i = 1; i < ${#lines[@]}; i += 2)); do
-      [[ -n "${lines[i]}" ]] && batch+=("${lines[i]}")
+      if [[ -n "${lines[i]}" ]]; then
+        batch+=("${lines[i]}")
+      fi
     done
 
     # Delete this batch if not empty
