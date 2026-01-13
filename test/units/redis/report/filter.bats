@@ -83,6 +83,29 @@ teardown() {
   assert_equal "$count" 1
 }
 
+@test "filter deletes all items with small batch size" {
+  # This tests the rescan logic - with batch_size=1, each item triggers a batch flush
+  # which modifies the hash during iteration, potentially invalidating the cursor
+  ./redis/report/filter.sh "$TEST_REPORT" "/data/project1/" 1 > /dev/null 2>&1
+
+  count=$(redis-cli -u "$REDIS_URL" HLEN "$TEST_REPORT")
+  assert_equal "$count" 2
+
+  # All project1 files (including subdir) should be gone
+  exists=$(redis-cli -u "$REDIS_URL" HEXISTS "$TEST_REPORT" "/data/project1/file1.pdf")
+  assert_equal "$exists" "0"
+  exists=$(redis-cli -u "$REDIS_URL" HEXISTS "$TEST_REPORT" "/data/project1/file2.pdf")
+  assert_equal "$exists" "0"
+  exists=$(redis-cli -u "$REDIS_URL" HEXISTS "$TEST_REPORT" "/data/project1/subdir/file3.pdf")
+  assert_equal "$exists" "0"
+
+  # project2 and other should remain
+  exists=$(redis-cli -u "$REDIS_URL" HEXISTS "$TEST_REPORT" "/data/project2/file1.pdf")
+  assert_equal "$exists" "1"
+  exists=$(redis-cli -u "$REDIS_URL" HEXISTS "$TEST_REPORT" "/other/path/file.pdf")
+  assert_equal "$exists" "1"
+}
+
 @test "filter handles special glob characters in prefix" {
   # Add paths with special characters
   redis-cli -u "$REDIS_URL" HSET "$TEST_REPORT" "/data/[special]/file.pdf" "0" > /dev/null
