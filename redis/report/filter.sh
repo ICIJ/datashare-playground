@@ -100,11 +100,11 @@ while true; do
       show_progress "$deleted" "$total_count"
     fi
 
-    [[ "$cursor" == "0" ]] && break
+    [[ "$cursor" == "0" ]] && break || true
   done
 
   # Stop when a full scan finds no more matches
-  [[ $found_in_pass -eq 0 ]] && break
+  [[ $found_in_pass -eq 0 ]] && break || true
 done
 
 show_progress "$deleted" "$total_count"
