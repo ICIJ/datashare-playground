@@ -98,15 +98,17 @@ while true; do
         chunk=("${batch[@]:j:batch_size}")
         hdel_batch "$report_name" "${chunk[@]}"
       done
-
-      # Show progress based on actual remaining count
-      current_size=$(redis-cli -u "$REDIS_URL" HLEN "$report_name")
-      deleted=$((initial_size - current_size))
-      show_progress "$deleted" "$total_count"
     fi
 
     [[ "$cursor" == "0" ]] && break || true
   done
+
+  # Show progress after each full scan pass (after pipe flushes)
+  if [[ $found_in_pass -gt 0 ]]; then
+    current_size=$(redis-cli -u "$REDIS_URL" HLEN "$report_name")
+    deleted=$((initial_size - current_size))
+    show_progress "$deleted" "$total_count"
+  fi
 
   # Stop when a full scan finds no more matches
   [[ $found_in_pass -eq 0 ]] && break || true
