@@ -26,14 +26,12 @@ fi
 # Escape glob special characters in prefix except for the trailing wildcard
 escaped_prefix=$(printf '%s' "$prefix" | sed 's/[][*?\\^]/\\&/g')
 
-redis_cli="redis-cli -u $REDIS_URL --pipe"
-
 hdel_batch() {
   local key_name=$1
   shift 1
-  local values=("$@")
-  local joined_values=$(printf '"%s" ' "${values[@]}")
-  echo "HDEL $key_name ${joined_values}" | $redis_cli > /dev/null 2>&1 || true
+  local count
+  count=$(redis-cli -u "$REDIS_URL" HDEL "$key_name" "$@" 2>/dev/null) || true
+  echo "${count:-0}"
 }
 
 show_progress() {
@@ -65,12 +63,11 @@ fi
 
 echo "Found $total_count paths to delete"
 
-# Get initial hash size to calculate actual deletions later
-initial_size=$(redis-cli -u "$REDIS_URL" HLEN "$report_name")
-
 # Second pass: delete matching keys
 # We must keep rescanning from cursor 0 because deleting items
 # during HSCAN can invalidate the cursor position
+deleted=0
+
 while true; do
   cursor=0
   found_in_pass=0
@@ -93,30 +90,21 @@ while true; do
     if [[ ${#batch[@]} -gt 0 ]]; then
       found_in_pass=$((found_in_pass + ${#batch[@]}))
 
-      # Delete in chunks of batch_size
+      # Delete in chunks of batch_size and count actual deletions
       for ((j = 0; j < ${#batch[@]}; j += batch_size)); do
         chunk=("${batch[@]:j:batch_size}")
-        hdel_batch "$report_name" "${chunk[@]}"
+        count=$(hdel_batch "$report_name" "${chunk[@]}")
+        deleted=$((deleted + count))
+        show_progress "$deleted" "$total_count"
       done
     fi
 
     [[ "$cursor" == "0" ]] && break || true
   done
 
-  # Show progress after each full scan pass (after pipe flushes)
-  if [[ $found_in_pass -gt 0 ]]; then
-    current_size=$(redis-cli -u "$REDIS_URL" HLEN "$report_name")
-    deleted=$((initial_size - current_size))
-    show_progress "$deleted" "$total_count"
-  fi
-
   # Stop when a full scan finds no more matches
   [[ $found_in_pass -eq 0 ]] && break || true
 done
-
-# Final count
-final_size=$(redis-cli -u "$REDIS_URL" HLEN "$report_name")
-deleted=$((initial_size - final_size))
 
 show_progress "$deleted" "$total_count"
 echo ""
