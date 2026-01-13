@@ -47,7 +47,6 @@ show_progress() {
 }
 
 # First pass: count matching keys using Lua script (single round-trip)
-echo -n "Counting paths starting with '$prefix' in $report_name... "
 total_count=$(redis-cli -u "$REDIS_URL" EVAL "
   local cursor = '0'
   local count = 0
@@ -58,8 +57,6 @@ total_count=$(redis-cli -u "$REDIS_URL" EVAL "
   until cursor == '0'
   return count
 " 1 "$report_name" "${escaped_prefix}*")
-
-echo "$total_count"
 
 if [[ $total_count -eq 0 ]]; then
   echo "No paths found starting with '$prefix'"
