@@ -33,7 +33,7 @@ hdel_batch() {
   shift 1
   local values=("$@")
   local joined_values=$(printf '"%s" ' "${values[@]}")
-  echo "HDEL $key_name ${joined_values}" | $redis_cli 2>/dev/null
+  echo "HDEL $key_name ${joined_values}" | $redis_cli > /dev/null 2>&1
 }
 
 show_progress() {
