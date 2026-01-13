@@ -46,25 +46,20 @@ show_progress() {
   printf "\rProgress: %d/%d (%d%%)" "$current" "$total" "$percent"
 }
 
-# First pass: count matching keys (use large COUNT for fewer round-trips)
-echo "Counting paths starting with '$prefix' in $report_name..."
-cursor=0
-total_count=0
+# First pass: count matching keys using Lua script (single round-trip)
+echo -n "Counting paths starting with '$prefix' in $report_name... "
+total_count=$(redis-cli -u "$REDIS_URL" EVAL "
+  local cursor = '0'
+  local count = 0
+  repeat
+    local result = redis.call('HSCAN', KEYS[1], cursor, 'MATCH', ARGV[1], 'COUNT', 10000)
+    cursor = result[1]
+    count = count + #result[2] / 2
+  until cursor == '0'
+  return count
+" 1 "$report_name" "${escaped_prefix}*")
 
-while true; do
-  mapfile -t lines < <(redis-cli -u "$REDIS_URL" HSCAN "$report_name" "$cursor" MATCH "${escaped_prefix}*" COUNT 10000)
-  cursor=${lines[0]}
-
-  # Count fields (every other line after cursor, starting at index 1)
-  for ((i = 1; i < ${#lines[@]}; i += 2)); do
-    [[ -n "${lines[i]}" ]] && ((++total_count))
-  done
-  printf "\rCounting: %d" "$total_count"
-
-  [[ "$cursor" == "0" ]] && break
-done
-
-echo ""
+echo "$total_count"
 
 if [[ $total_count -eq 0 ]]; then
   echo "No paths found starting with '$prefix'"
