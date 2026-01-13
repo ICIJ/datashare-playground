@@ -65,11 +65,12 @@ fi
 
 echo "Found $total_count paths to delete"
 
-# Second pass: delete with progress
+# Get initial hash size to calculate actual deletions later
+initial_size=$(redis-cli -u "$REDIS_URL" HLEN "$report_name")
+
+# Second pass: delete matching keys
 # We must keep rescanning from cursor 0 because deleting items
 # during HSCAN can invalidate the cursor position
-deleted=0
-
 while true; do
   cursor=0
   found_in_pass=0
@@ -91,7 +92,6 @@ while true; do
     # Delete this batch if not empty
     if [[ ${#batch[@]} -gt 0 ]]; then
       found_in_pass=$((found_in_pass + ${#batch[@]}))
-      deleted=$((deleted + ${#batch[@]}))
 
       # Delete in chunks of batch_size
       for ((j = 0; j < ${#batch[@]}; j += batch_size)); do
@@ -99,6 +99,9 @@ while true; do
         hdel_batch "$report_name" "${chunk[@]}"
       done
 
+      # Show progress based on actual remaining count
+      current_size=$(redis-cli -u "$REDIS_URL" HLEN "$report_name")
+      deleted=$((initial_size - current_size))
       show_progress "$deleted" "$total_count"
     fi
 
@@ -108,6 +111,10 @@ while true; do
   # Stop when a full scan finds no more matches
   [[ $found_in_pass -eq 0 ]] && break || true
 done
+
+# Final count
+final_size=$(redis-cli -u "$REDIS_URL" HLEN "$report_name")
+deleted=$((initial_size - final_size))
 
 show_progress "$deleted" "$total_count"
 echo ""
