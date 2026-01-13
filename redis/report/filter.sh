@@ -72,7 +72,6 @@ echo "Found $total_count paths to delete"
 # We must keep rescanning from cursor 0 because deleting items
 # during HSCAN can invalidate the cursor position
 deleted=0
-batch=()
 
 while true; do
   cursor=0
@@ -80,34 +79,32 @@ while true; do
 
   # Scan through the entire hash once
   while true; do
-    mapfile -t lines < <(redis-cli -u "$REDIS_URL" HSCAN "$report_name" "$cursor" MATCH "${escaped_prefix}*" COUNT "$batch_size")
+    # Use large COUNT for fewer round-trips, collect fields directly
+    mapfile -t lines < <(redis-cli -u "$REDIS_URL" HSCAN "$report_name" "$cursor" MATCH "${escaped_prefix}*" COUNT 10000)
     cursor=${lines[0]}
 
     # Extract fields (every other line after cursor, starting at index 1)
+    batch=()
     for ((i = 1; i < ${#lines[@]}; i += 2)); do
-      field="${lines[i]}"
-      [[ -z "$field" ]] && continue
-
-      batch+=("$field")
-      ((++deleted))
-      ((++found_in_pass))
-
-      if ((${#batch[@]} >= batch_size)); then
-        hdel_batch "$report_name" "${batch[@]}"
-        batch=()
-        show_progress "$deleted" "$total_count"
-      fi
+      [[ -n "${lines[i]}" ]] && batch+=("${lines[i]}")
     done
+
+    # Delete this batch if not empty
+    if [[ ${#batch[@]} -gt 0 ]]; then
+      found_in_pass=$((found_in_pass + ${#batch[@]}))
+      deleted=$((deleted + ${#batch[@]}))
+
+      # Delete in chunks of batch_size
+      for ((j = 0; j < ${#batch[@]}; j += batch_size)); do
+        chunk=("${batch[@]:j:batch_size}")
+        hdel_batch "$report_name" "${chunk[@]}"
+      done
+
+      show_progress "$deleted" "$total_count"
+    fi
 
     [[ "$cursor" == "0" ]] && break
   done
-
-  # Flush remaining batch from this pass
-  if [[ ${#batch[@]} -gt 0 ]]; then
-    hdel_batch "$report_name" "${batch[@]}"
-    batch=()
-    show_progress "$deleted" "$total_count"
-  fi
 
   # Stop when a full scan finds no more matches
   [[ $found_in_pass -eq 0 ]] && break
