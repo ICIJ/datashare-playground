@@ -70,6 +70,7 @@ Here are the main scripts available in this repository:
 │   │   └── rpush.sh # Insert stdin rows to a given queue
 │   │
 │   └── report
+│       ├── filter.sh # Remove paths starting with a prefix from a given report map
 │       ├── hdel.sh # Remove stdin rows from a given report map
 │       └── hset.sh # Insert stdin rows to a given report map
 │
@@ -199,4 +200,18 @@ This can also be done with a single file:
 
 ```bash
 echo "/file/to/reindex.pdf" | ./redis/report/hdel.sh extract:report
+```
+
+### Filter paths from a report map
+
+To remove all paths starting with a given prefix from a report map (useful for large cleanups):
+
+```bash
+./redis/report/filter.sh extract:report /home/foo/old-data/
+```
+
+Or with a custom batch size for very large maps:
+
+```bash
+./redis/report/filter.sh extract:report /home/foo/old-data/ 5000
 ```
