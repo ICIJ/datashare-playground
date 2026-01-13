@@ -46,13 +46,13 @@ show_progress() {
   printf "\rProgress: %d/%d (%d%%)" "$current" "$total" "$percent"
 }
 
-# First pass: count matching keys
+# First pass: count matching keys (use large COUNT for fewer round-trips)
 echo "Counting paths starting with '$prefix' in $report_name..."
 cursor=0
 total_count=0
 
 while true; do
-  mapfile -t lines < <(redis-cli -u "$REDIS_URL" HSCAN "$report_name" "$cursor" MATCH "${escaped_prefix}*" COUNT "$batch_size")
+  mapfile -t lines < <(redis-cli -u "$REDIS_URL" HSCAN "$report_name" "$cursor" MATCH "${escaped_prefix}*" COUNT 10000)
   cursor=${lines[0]}
 
   # Count fields (every other line after cursor, starting at index 1)
