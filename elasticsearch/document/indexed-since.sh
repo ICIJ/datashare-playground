@@ -31,7 +31,7 @@ body='{
       "must": [
         {
           "range": {
-            "extractionDate": {
+            "indexingDate": {
               '"$range_query"'
             }
           }
