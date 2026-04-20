@@ -92,7 +92,7 @@ Developpers can run tests using [bats](https://github.com/bats-core/bats-core):
 
 ```bash
 export ELASTICSEARCH_URL=http://localhost:9200 # Change this with the URL of ElasticSearch
-make tests
+make test
 ```
 
 ## Cookbook
