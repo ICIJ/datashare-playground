@@ -44,12 +44,10 @@ jobs:
       REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v3
-        with:
-          submodules: recursive
 
       - name: Install redis-tools
         run: sudo apt-get update && sudo apt-get install -y redis-tools
 
       - name: Run the tests with bats
-        run: ./test/bats/bin/bats -r test/units/
+        run: make test
 
