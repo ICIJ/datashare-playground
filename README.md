@@ -48,6 +48,7 @@ Here are the main scripts available in this repository:
 │   │   ├── delete.sh # Delete an index
 │   │   ├── list.sh # Get all indices
 │   │   ├── number_of_replicas.sh # Get or change number of replicas for a given index
+│   │   ├── readonly.sh # Get or toggle readonly status (blocks.write) for one or several indices
 │   │   ├── refresh.sh # Refresh a given index
 │   │   ├── refresh_interval.sh # Get or change refresh interval for a given index
 │   │   ├── reindex.sh # Reindex everything from a given index
