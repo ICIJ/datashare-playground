@@ -42,7 +42,7 @@ teardown() {
 @test "reports that a fresh index is not readonly" {
     run ./elasticsearch/index/readonly.sh $TEST_INDEX_FOO
     assert_success
-    assert_output --partial "The $TEST_INDEX_FOO index is not readonly"
+    assert_line --regexp "$TEST_INDEX_FOO.*no"
 }
 
 @test "can mark an index as readonly" {
@@ -50,8 +50,7 @@ teardown() {
     assert_success
 
     run ./elasticsearch/index/readonly.sh $TEST_INDEX_FOO
-    assert_output --partial "The $TEST_INDEX_FOO index is readonly"
-    refute_output --partial "is not readonly"
+    assert_line --regexp "$TEST_INDEX_FOO.*yes"
 }
 
 @test "can unmark an index as readonly" {
@@ -61,7 +60,7 @@ teardown() {
     assert_success
 
     run ./elasticsearch/index/readonly.sh $TEST_INDEX_FOO
-    assert_output --partial "The $TEST_INDEX_FOO index is not readonly"
+    assert_line --regexp "$TEST_INDEX_FOO.*no"
 }
 
 @test "reports readonly status for several indices at once" {
@@ -69,8 +68,8 @@ teardown() {
 
     run ./elasticsearch/index/readonly.sh "$TEST_INDEX_FOO,$TEST_INDEX_BAR"
     assert_success
-    assert_output --partial "The $TEST_INDEX_FOO index is readonly"
-    assert_output --partial "The $TEST_INDEX_BAR index is not readonly"
+    assert_line --regexp "$TEST_INDEX_FOO.*yes"
+    assert_line --regexp "$TEST_INDEX_BAR.*no"
 }
 
 @test "supports wildcards when reporting status" {
@@ -78,8 +77,15 @@ teardown() {
 
     run ./elasticsearch/index/readonly.sh "bats.index.readonly.*"
     assert_success
-    assert_output --partial "The $TEST_INDEX_FOO index is readonly"
-    assert_output --partial "The $TEST_INDEX_BAR index is not readonly"
+    assert_line --regexp "$TEST_INDEX_FOO.*yes"
+    assert_line --regexp "$TEST_INDEX_BAR.*no"
+}
+
+@test "renders a table header when reporting status" {
+    run ./elasticsearch/index/readonly.sh $TEST_INDEX_FOO
+    assert_success
+    assert_output --partial "INDEX"
+    assert_output --partial "READONLY"
 }
 
 @test "actually blocks writes when set to true" {
