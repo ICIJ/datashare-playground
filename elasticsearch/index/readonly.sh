@@ -26,31 +26,50 @@ set_readonly() {
   spinner_stop "$message"
 }
 
-# Report readonly state for every index matched by the input pattern
+# Report readonly state as a two-column table so many indices stay scannable
 # (wildcards and comma-separated names work natively against the ES settings API)
 report_readonly_status() {
   local settings=$(curl -sXGET "$esindex/_settings")
-  local matched_indices=$(echo "$settings" | jq -r 'keys[]?')
+  local matched_indices=$(echo "$settings" | jq -r 'keys[]?' | sort)
   if [[ -z "$matched_indices" ]]; then
     log_warn "No index matched '$index'"
     exit 1
   fi
+
+  # Size the INDEX column to the longest name so rows align even for long IDs
+  local index_column_width=$(longest_width "$matched_indices" "INDEX")
+  table_header "INDEX:$index_column_width" "READONLY:10"
   for name in $matched_indices; do
-    log_readonly_status "$name" "$settings"
+    log_readonly_row "$name" "$settings" "$index_column_width"
   done
 }
 
-# Log whether a single index has blocks.write set to true
-# (ES omits the setting when it has never been set — treat missing as false)
-log_readonly_status() {
+# Print one table row per index, coloring the status so readonly stands out
+# (ES omits blocks.write entirely when it has never been set — treat missing as false)
+log_readonly_row() {
   local name=$1
   local settings=$2
+  local index_column_width=$3
   local blocks_write=$(echo "$settings" | jq -r ".\"$name\".settings.index.blocks.write // \"false\"")
   if [[ "$blocks_write" == "true" ]]; then
-    log_info "The $name index is readonly"
+    printf "%-${index_column_width}s ${Green}%-10s${Color_Off}\n" "$name" "yes"
   else
-    log_info "The $name index is not readonly"
+    printf "%-${index_column_width}s ${Dimmed}%-10s${Color_Off}\n" "$name" "no"
   fi
+}
+
+# Return the max length among the given lines and a fallback label
+# (the label keeps the column at least wide enough to fit the header)
+longest_width() {
+  local lines=$1
+  local fallback=$2
+  local max=${#fallback}
+  while IFS= read -r line; do
+    if [[ ${#line} -gt $max ]]; then
+      max=${#line}
+    fi
+  done <<< "$lines"
+  echo "$max"
 }
 
 log_title "Readonly: $index"
