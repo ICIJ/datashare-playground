@@ -3,7 +3,14 @@
 script_dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source $script_dir/../../lib/cli.sh
 
-check_usage 1 '<index> [<version>]'
+# Optional --shards|-s flag to reindex into an index with a different shard count
+shards=
+while [[ "$1" == "--shards" || "$1" == "-s" ]]; do
+  shards=$2
+  shift 2
+done
+
+check_usage 1 '[--shards|-s <n>] <index> [<version>]'
 check_env
 check_bins
 check_elasticsearch_url
@@ -17,6 +24,7 @@ new_index="${index_name}${temp_suffix}"
 # Global variables for results
 BACKUP_INDEX=""
 DOC_COUNT=0
+ORIGINAL_REPLICAS=1
 
 check_index_exists() {
     local index=$1
@@ -34,21 +42,22 @@ create_new_index() {
     local target_index=$1
     spinner_start "Create temporary index"
 
-    # Use create.sh to create the index with settings/mappings
+    # Build create.sh arguments: optional shard override, index name, optional version
+    local create_args=()
+    if [[ -n "$shards" ]]; then
+        create_args+=(--shards "$shards")
+    fi
+    create_args+=("$target_index")
     if [[ -n "$version" ]]; then
-        if ! "$script_dir/create.sh" "$target_index" "$version" > /dev/null; then
-            spinner_error "Create temporary index"
-            echo ""
-            log_error "Failed to create new index '$target_index'"
-            exit 1
-        fi
-    else
-        if ! "$script_dir/create.sh" "$target_index" > /dev/null; then
-            spinner_error "Create temporary index"
-            echo ""
-            log_error "Failed to create new index '$target_index'"
-            exit 1
-        fi
+        create_args+=("$version")
+    fi
+
+    # Use create.sh to create the index with settings/mappings
+    if ! "$script_dir/create.sh" "${create_args[@]}" > /dev/null; then
+        spinner_error "Create temporary index"
+        echo ""
+        log_error "Failed to create new index '$target_index'"
+        exit 1
     fi
     spinner_stop "Create temporary index"
 }
@@ -89,6 +98,21 @@ reindex_data() {
         exit 1
     fi
     spinner_stop "Reindex data"
+}
+
+capture_original_replicas() {
+    local index=$1
+    local replicas
+    replicas=$(curl -s "$ELASTICSEARCH_URL/$index/_settings" | jq -r ".\"$index\".settings.index.number_of_replicas // empty")
+    if [[ -n "$replicas" ]]; then
+        ORIGINAL_REPLICAS=$replicas
+    fi
+}
+
+set_replicas() {
+    local index=$1
+    local replicas=$2
+    "$script_dir/number_of_replicas.sh" "$index" "$replicas" > /dev/null
 }
 
 verify_document_count() {
@@ -192,10 +216,15 @@ main() {
 
     # Execute steps
     check_index_exists "$index_name"
+    capture_original_replicas "$index_name"
     create_new_index "$new_index"
+    # Drop replicas to 0 on the temporary index to speed up the reindex and save disk;
+    # the final index inherits this from the clone, so we restore the count at the end
+    set_replicas "$new_index" 0
     reindex_data "$index_name" "$new_index"
     verify_document_count "$index_name" "$new_index"
     swap_indices "$index_name" "$new_index"
+    set_replicas "$index_name" "$ORIGINAL_REPLICAS"
 
     # Final count
     "$script_dir/refresh.sh" "$index_name" > /dev/null

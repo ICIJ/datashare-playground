@@ -12,9 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     services:
       elasticsearch:
-        image: docker.elastic.co/elasticsearch/elasticsearch:7.9.1
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.19.16
         options: >-
-          --health-cmd "curl http://localhost:9200/_cluster/health"
+          --health-cmd "curl -s -u elastic:changeme http://localhost:9200/_cluster/health"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
@@ -24,11 +24,15 @@ jobs:
           ES_JAVA_OPTS: -Xms256m -Xmx256m
           discovery.type: single-node
           cluster.name: datashare
+          ELASTIC_PASSWORD: changeme
+          xpack.security.enabled: "true"
+          xpack.security.http.ssl.enabled: "false"
           http.compression: false
           http.cors.enabled: true
           http.cors.allow-origin: "*"
           http.cors.allow-methods: OPTIONS, HEAD, GET, POST, PUT, DELETE
           indices.query.bool.max_clause_count: 20000
+          reindex.remote.whitelist: "localhost:9200,127.0.0.1:9200"
       redis:
         image: redis:7-alpine
         options: >-
@@ -40,7 +44,7 @@ jobs:
           - 6379:6379
 
     env:
-      ELASTICSEARCH_URL: http://localhost:9200
+      ELASTICSEARCH_URL: http://elastic:changeme@localhost:9200
       REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v3

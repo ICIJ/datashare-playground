@@ -44,7 +44,7 @@ Here are the main scripts available in this repository:
 │   │
 │   ├── index
 │   │   ├── clone.sh # Clone a given index into another
-│   │   ├── create.sh # Create an index using default Datashare settings
+│   │   ├── create.sh # Create an index using default Datashare settings (optional --shards <n>)
 │   │   ├── delete.sh # Delete an index
 │   │   ├── list.sh # Get all indices
 │   │   ├── number_of_replicas.sh # Get or change number of replicas for a given index
@@ -52,8 +52,9 @@ Here are the main scripts available in this repository:
 │   │   ├── refresh.sh # Refresh a given index
 │   │   ├── refresh_interval.sh # Get or change refresh interval for a given index
 │   │   ├── reindex.sh # Reindex everything from a given index
+│   │   ├── remote_reindex.sh # Reindex an index from a remote cluster into another (with auth)
 │   │   ├── replace.sh # Replace an index by another one
-│   │   └── safe_reindex.sh # Safely reindex an index with backup and verification
+│   │   └── safe_reindex.sh # Safely reindex an index with backup and verification (optional --shards <n>)
 │   │
 │   ├── named_entity
 │   │   ├── count.sh # Count named entities
@@ -160,6 +161,38 @@ This opperation might be useful if mapping or settings of the index changed.
 
 ```bash
 ./elasticsearch/index/replace.sh ricecake-tmp ricecake
+```
+
+### Re-shard an index
+
+To change the number of shards of an index in place, `safe_reindex.sh` accepts a
+`--shards` option. It reindexes into a temporary index with the new shard count
+(dropping replicas to 0 during the copy for speed), verifies the document count and
+swaps it back, keeping a backup:
+
+```bash
+./elasticsearch/index/safe_reindex.sh --shards 12 ricecake
+```
+
+### Reindex from a remote cluster
+
+To copy an index from another Elasticsearch cluster into this one (the source index is
+left untouched). The **destination** cluster must whitelist the remote host in its
+`elasticsearch.yml` (`reindex.remote.whitelist: "origin-host:9200"`):
+
+```bash
+./elasticsearch/index/remote_reindex.sh --remote-es-url https://origin-host:9200 ricecake
+```
+
+Credentials can be embedded in the URL (URL-encode special characters, e.g. `@` → `%40`),
+the destination defaults to `ELASTICSEARCH_URL`, and you can rename or re-shard on the way:
+
+```bash
+./elasticsearch/index/remote_reindex.sh \
+  --remote-es-url https://user:p%40ss@origin-host:9200 \
+  --destination-es-url http://localhost:9200 \
+  --shards 12 \
+  ricecake ricecake-new
 ```
 
 ### Queue files (for indexing)

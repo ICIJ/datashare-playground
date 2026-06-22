@@ -84,6 +84,24 @@ teardown() {
     assert [ "$backup_indices" -ge 1 ]
 }
 
+@test "safe_reindex can change the shard count while preserving documents" {
+    initial_count=$(curl -s "$ELASTICSEARCH_URL/$TEST_INDEX/_count" | jq '.count')
+
+    # Reindex into 3 shards
+    run bash -c "echo 'y' | ./elasticsearch/index/safe_reindex.sh --shards 3 $TEST_INDEX"
+    assert_success
+
+    curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_refresh" > /dev/null
+    final_count=$(curl -s "$ELASTICSEARCH_URL/$TEST_INDEX/_count" | jq '.count')
+    assert_equal "$initial_count" "$final_count"
+
+    # The final index must carry the new shard count and keep replicas at 1
+    shards=$(curl -s "$ELASTICSEARCH_URL/$TEST_INDEX/_settings" | jq -r ".\"$TEST_INDEX\".settings.index.number_of_shards")
+    assert_equal "$shards" "3"
+    replicas=$(curl -s "$ELASTICSEARCH_URL/$TEST_INDEX/_settings" | jq -r ".\"$TEST_INDEX\".settings.index.number_of_replicas")
+    assert_equal "$replicas" "1"
+}
+
 @test "safe_reindex preserves document content" {
     # Run safe_reindex
     run bash -c "echo 'y' | ./elasticsearch/index/safe_reindex.sh $TEST_INDEX"
