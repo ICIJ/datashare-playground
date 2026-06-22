@@ -3,7 +3,14 @@
 script_dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source $script_dir/../../lib/cli.sh
 
-check_usage 1 '<index> [<version>]'
+# Optional --shards|-s flag to override the default number of shards
+shards=
+while [[ "$1" == "--shards" || "$1" == "-s" ]]; do
+  shards=$2
+  shift 2
+done
+
+check_usage 1 '[--shards|-s <n>] <index> [<version>]'
 check_env
 check_bins
 check_elasticsearch_url
@@ -31,6 +38,11 @@ mappings_json=$resources_dir/datashare_index_mappings.json
 settings_json=$resources_dir/datashare_index_settings.json
 # Combine contents of mappings and settings JSON files into one body
 body=$(jq --slurpfile mappings $mappings_json '{ "mappings": $mappings[0], "settings": . }' $settings_json)
+
+# Override the number of shards if requested
+if [[ -n "$shards" ]]; then
+  body=$(echo "$body" | jq --argjson n "$shards" '.settings["index.number_of_shards"] = $n')
+fi
 
 spinner_start "Create index"
 if ! curl -sXPUT "$ELASTICSEARCH_URL/$1" -H 'Content-Type: application/json' -d "$body" | jq -e '.acknowledged' > /dev/null; then
