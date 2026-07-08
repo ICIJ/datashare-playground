@@ -43,6 +43,7 @@ Here are the main scripts available in this repository:
 │   │   └── reindex.sh # Reindex duplicates from a given index
 │   │
 │   ├── index
+│   │   ├── alias.sh # List, add or remove aliases for a given index
 │   │   ├── clone.sh # Clone a given index into another
 │   │   ├── create.sh # Create an index using default Datashare settings
 │   │   ├── delete.sh # Delete an index

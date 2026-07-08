@@ -164,19 +164,24 @@ swap_indices() {
     curl -s -X DELETE "$ELASTICSEARCH_URL/$temp_index" > /dev/null
     spinner_stop "Clean temporary index"
 
-    # Restore aliases
+    # Restore aliases using the reusable alias command. This runs after the
+    # reindex and swap have already succeeded, so a failed restore is best-effort:
+    # warn and keep going rather than aborting (alias.sh exits non-zero on failure,
+    # and an unguarded call under 'set -e' would kill the run mid-restore).
     if [[ -n "$aliases" ]]; then
         spinner_start "Restore aliases"
+        local alias_failures=0
         for alias in $aliases; do
-            curl -s -X POST "$ELASTICSEARCH_URL/_aliases" \
-                -H 'Content-Type: application/json' \
-                -d "{
-                    \"actions\": [
-                        {\"add\": {\"index\": \"$old_index\", \"alias\": \"$alias\"}}
-                    ]
-                }" > /dev/null
+            if ! "$script_dir/alias.sh" "$old_index" "$alias" > /dev/null; then
+                alias_failures=$((alias_failures + 1))
+            fi
         done
-        spinner_stop "Restore aliases"
+        if [[ "$alias_failures" -gt 0 ]]; then
+            spinner_error "Restore aliases"
+            log_warn "Could not restore $alias_failures alias(es) on '$old_index'"
+        else
+            spinner_stop "Restore aliases"
+        fi
     fi
 }
 

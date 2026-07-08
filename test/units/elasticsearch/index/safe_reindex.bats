@@ -96,3 +96,16 @@ teardown() {
     doc=$(curl -s "$ELASTICSEARCH_URL/$TEST_INDEX/_doc/1" | jq -r '.found')
     assert_equal "$doc" "true"
 }
+
+@test "safe_reindex restores an alias" {
+    # Point an alias at the index before reindexing
+    curl -sXPOST "$ELASTICSEARCH_URL/_aliases" -H "$H_CONTENT_TYPE" \
+      -d "{ \"actions\": [ { \"add\": { \"index\": \"$TEST_INDEX\", \"alias\": \"${TEST_INDEX}_alias\" } } ] }" > /dev/null
+
+    run bash -c "echo 'y' | ./elasticsearch/index/safe_reindex.sh $TEST_INDEX"
+    assert_success
+
+    # The alias must still resolve to the (rebuilt) index afterwards
+    run bash -c "curl -s \"$ELASTICSEARCH_URL/_alias/${TEST_INDEX}_alias\" | jq -e '.\"$TEST_INDEX\"'"
+    assert_success
+}
