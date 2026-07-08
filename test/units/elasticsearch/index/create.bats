@@ -39,3 +39,11 @@ teardown() {
     run ./elasticsearch/index/list.sh
     assert_output --partial $TEST_INDEX_FOO
 }
+
+@test "can create an index with a custom shard count" {
+    run ./elasticsearch/index/create.sh --shards 3 $TEST_INDEX_FOO
+    assert_success
+
+    shards=$(curl -s "$ELASTICSEARCH_URL/$TEST_INDEX_FOO/_settings" | jq -r ".\"$TEST_INDEX_FOO\".settings.index.number_of_shards")
+    assert_equal "$shards" "3"
+}
