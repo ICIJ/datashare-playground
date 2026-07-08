@@ -78,9 +78,33 @@ longest_width() {
   echo "$max"
 }
 
+# Add or remove a single alias via the atomic _aliases actions API
+# Usage: apply_alias_action <add|remove> <human-verb>
+apply_alias_action() {
+  local action=$1
+  local verb=$2
+  local body='{ "actions": [ { "'"$action"'": { "index": "'"$index"'", "alias": "'"$alias_name"'" } } ] }'
+  local message="$verb alias '$alias_name'"
+  spinner_start "$message"
+  if ! curl -sXPOST "$ELASTICSEARCH_URL/_aliases" -H 'Content-Type: application/json' -d"$body" | jq -e '.acknowledged' > /dev/null; then
+    spinner_error "$message"
+    exit 1
+  fi
+  spinner_stop "$message"
+}
+
+# Removing requires an explicit alias; without one there is nothing to remove
+if [[ "$remove" == true && -z "$alias_name" ]]; then
+  log_error "Removing an alias requires <alias>: $0 <index> <alias> --remove"
+  exit 1
+fi
+
 log_title "Alias: $index"
 
-# List mode only for now — add/remove branches are added in Task 2
 if [[ -z "$alias_name" ]]; then
   report_aliases
+elif [[ "$remove" == true ]]; then
+  apply_alias_action remove "Remove"
+else
+  apply_alias_action add "Add"
 fi

@@ -57,3 +57,40 @@ teardown() {
     assert_line --regexp "$TEST_INDEX_FOO.*-"
     assert_line --regexp "$TEST_INDEX_BAR.*-"
 }
+
+@test "can add an alias to an index" {
+    run ./elasticsearch/index/alias.sh $TEST_INDEX_FOO $TEST_ALIAS
+    assert_success
+}
+
+@test "listing shows an added alias" {
+    ./elasticsearch/index/alias.sh $TEST_INDEX_FOO $TEST_ALIAS > /dev/null
+
+    run ./elasticsearch/index/alias.sh $TEST_INDEX_FOO
+    assert_success
+    assert_line --regexp "$TEST_INDEX_FOO.*$TEST_ALIAS"
+}
+
+@test "an added alias actually resolves to the index" {
+    ./elasticsearch/index/alias.sh $TEST_INDEX_FOO $TEST_ALIAS > /dev/null
+
+    # The alias endpoint must report the index it points at
+    run bash -c "curl -s \"$ELASTICSEARCH_URL/_alias/$TEST_ALIAS\" | jq -e '.\"$TEST_INDEX_FOO\"'"
+    assert_success
+}
+
+@test "can remove an alias from an index" {
+    ./elasticsearch/index/alias.sh $TEST_INDEX_FOO $TEST_ALIAS > /dev/null
+
+    run ./elasticsearch/index/alias.sh $TEST_INDEX_FOO $TEST_ALIAS --remove
+    assert_success
+
+    run ./elasticsearch/index/alias.sh $TEST_INDEX_FOO
+    assert_line --regexp "$TEST_INDEX_FOO.*-"
+}
+
+@test "fails to remove without an alias" {
+    bats_require_minimum_version 1.5.0
+
+    run ! ./elasticsearch/index/alias.sh $TEST_INDEX_FOO --remove
+}
