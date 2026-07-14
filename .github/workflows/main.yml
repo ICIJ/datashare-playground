@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       elasticsearch:
-        image: docker.elastic.co/elasticsearch/elasticsearch:7.9.1
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.19.8
         options: >-
           --health-cmd "curl http://localhost:9200/_cluster/health"
           --health-interval 10s
@@ -26,9 +26,21 @@ jobs:
           cluster.name: datashare
           http.compression: false
           http.cors.enabled: true
-          http.cors.allow-origin: "*"
+          # Single-quote the wildcard: ES 8.x writes env vars into a YAML
+          # config and a bare * is an invalid YAML anchor (7.9.1 tolerated it).
+          http.cors.allow-origin: "'*'"
           http.cors.allow-methods: OPTIONS, HEAD, GET, POST, PUT, DELETE
           indices.query.bool.max_clause_count: 20000
+          indices.id_field_data.enabled: true
+          # ES 8.x enables security and TLS by default; the tests talk to a
+          # plain http://localhost:9200, so both must be turned off.
+          xpack.security.enabled: false
+          xpack.security.http.ssl.enabled: false
+          # Keep CI runners (often >85% full) from tripping the flood-stage
+          # read-only block, which would fail writes mid-suite.
+          cluster.routing.allocation.disk.watermark.low: 90%
+          cluster.routing.allocation.disk.watermark.high: 99%
+          cluster.routing.allocation.disk.watermark.flood_stage: 100%
       redis:
         image: redis:7-alpine
         options: >-
