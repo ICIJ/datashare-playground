@@ -9,10 +9,13 @@ setup() {
   export ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-http://elasticsearch:9200}
 
   TEST_INDEX="bats.index.forcemerge.foo"
+  MISSING_INDEX="bats.index.forcemerge.missing"
+
   H_CONTENT_TYPE="Content-Type: application/json"
 
   # Clean any index leftover from a previous failed run
   curl -sXDELETE "$ELASTICSEARCH_URL/$TEST_INDEX" > /dev/null 2>&1 || true
+  curl -sXDELETE "$ELASTICSEARCH_URL/$MISSING_INDEX" > /dev/null 2>&1 || true
 
   # Create the index and seed it with a few docs
   curl -sXPUT "$ELASTICSEARCH_URL/$TEST_INDEX" > /dev/null
@@ -35,17 +38,14 @@ teardown() {
     run ! ./elasticsearch/index/forcemerge.sh
 }
 
-@test "returns a task id for a valid index" {
+@test "force merges an existing index successfully" {
     run ./elasticsearch/index/forcemerge.sh $TEST_INDEX
     assert_success
-    task_id=$(echo "$output" | jq -re '.task')
-    assert [ -n "$task_id" ]
+    assert_output --partial "force merged"
 }
 
-@test "the returned task id is resolvable via task/get.sh" {
-    task_id=$(./elasticsearch/index/forcemerge.sh $TEST_INDEX | jq -re '.task')
+@test "fails on a non-existent index" {
+    bats_require_minimum_version 1.5.0
 
-    run ./elasticsearch/task/get.sh "$task_id"
-    assert_success
-    assert_output --partial "$task_id"
+    run ! ./elasticsearch/index/forcemerge.sh $MISSING_INDEX
 }
