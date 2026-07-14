@@ -47,6 +47,7 @@ Here are the main scripts available in this repository:
 │   │   ├── clone.sh # Clone a given index into another
 │   │   ├── create.sh # Create an index using default Datashare settings
 │   │   ├── delete.sh # Delete an index
+│   │   ├── forcemerge.sh # Force merge an index to expunge deleted documents
 │   │   ├── list.sh # Get all indices
 │   │   ├── number_of_replicas.sh # Get or change number of replicas for a given index
 │   │   ├── readonly.sh # Get or toggle readonly status (blocks.write) for one or several indices
