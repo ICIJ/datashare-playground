@@ -489,6 +489,7 @@ field() {
 
     run ! ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --verify
     assert_output --partial "Old path still has 1 documents: /data/plain.pdf"
+    assert_output --partial "1 entries have no document at their new path"
 }
 
 @test "verify fails when an old path still has documents" {
@@ -604,6 +605,7 @@ field() {
     ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
     run ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --verify
     assert_success
+    refute_output --partial "no document at their new path"
 }
 
 @test "verify accepts nested directory renames" {
@@ -616,6 +618,7 @@ field() {
     ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
     run ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --verify
     assert_success
+    refute_output --partial "no document at their new path"
 }
 
 @test "verify accepts a directory entry that matches no document" {
@@ -624,4 +627,5 @@ field() {
     ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
     run ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --verify
     assert_success
+    assert_output --partial "no document at their new path"
 }
