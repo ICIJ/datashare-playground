@@ -200,6 +200,16 @@ field() {
     assert_equal "$(field doc dirname)" "/data"
 }
 
+@test "a successful refresh prints nothing extra" {
+    seed doc '{"type":"Document","path":"/data/plain.pdf","dirname":"/data"}'
+    entry file /data/plain.pdf /data/clean.pdf > "$MANIFEST"
+
+    run ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    assert_success
+    refute_output --partial "Failed to refresh"
+    refute_output --partial "Refresh Index"
+}
+
 @test "renames Duplicate documents sharing the renamed path" {
     seed doc '{"type":"Document","path":"/data/plain.pdf","dirname":"/data"}'
     seed dup '{"type":"Duplicate","path":"/data/plain.pdf","documentId":"doc"}'

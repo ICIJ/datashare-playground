@@ -36,7 +36,8 @@ Here are the main scripts available in this repository:
 │   │   ├── count.sh # Count documents under a given path
 │   │   ├── delete.sh # Delete documents under a given path
 │   │   ├── move.sh # Move documents from a directory to another
-│   │   └── reindex.sh # Reindex documents from a given index and under a specific directory
+│   │   ├── reindex.sh # Reindex documents from a given index and under a specific directory
+│   │   └── rename.sh # Apply a pystou rename manifest to an index
 │   │
 │   ├── duplicate
 │   │   ├── count.sh # Count duplicates
@@ -218,3 +219,60 @@ Or with a custom batch size for very large maps:
 ```bash
 ./redis/report/filter.sh extract:report /home/foo/old-data/ 5000
 ```
+
+### Apply a rename manifest after `pystou normalize`
+
+`pystou normalize` renames files whose names are not portable UTF-8 and records every
+rename to a JSONL manifest. Datashare document ids are content digests, not path hashes, so
+those documents only need their `path` and `dirname` updated. Nothing is re-extracted and no
+named entities are lost.
+
+**1. Measure first. `--dry-run` writes nothing and reports what would be updated:**
+
+```bash
+./elasticsearch/document/rename.sh my-index run-42.jsonl --map /mnt/nas/leak=/home/datashare/data --dry-run
+```
+
+`--map` is required whenever the paths recorded on the host differ from the paths Datashare
+indexed, which is the normal case when Datashare runs in a container. It is a single
+`<host_prefix>=<index_prefix>` pair, and any manifest entry not under the host prefix is an
+error rather than a skip.
+
+Read the `MISSING` column before going further. Entries in the `utf8` bucket that match no
+document never reached the index at all, because a non-UTF-8 filename cannot be reopened
+after Java decodes it. Those files need queueing and scanning, not renaming:
+
+```bash
+find /home/foo/bar -type f | ./redis/queue/rpush.sh extract:queue
+```
+
+**2. Apply it:**
+
+```bash
+./elasticsearch/document/rename.sh my-index run-42.jsonl --map /mnt/nas/leak=/home/datashare/data
+```
+
+**3. Verify:**
+
+```bash
+./elasticsearch/document/rename.sh my-index run-42.jsonl --map /mnt/nas/leak=/home/datashare/data --verify
+```
+
+If a run fails part way through, re-run the identical command. Both passes match on the old
+paths, which no longer exist once applied, so a replay is idempotent.
+
+## Known limitations
+
+`elasticsearch/document/rename.sh` updates `path` and `dirname`, and nothing else.
+
+- **`title`, `titleNorm` and `metadata.tika_metadata_resourcename` are left alone**, so
+  Datashare keeps displaying the pre-normalization filename. This is deliberate: `title` is
+  the email subject or `dc:title` for many documents, and the basename is only a fallback,
+  so rewriting it would corrupt real titles.
+- **Postgres `note.path` is not updated.** A directory rename orphans the note banner for
+  paths beneath it. Re-point those notes by hand.
+- **Datashare's `extract:report` is not updated.** Regenerate it from the index once the
+  rename has landed.
+- **`Duplicate` documents keep their original `_id`**, which is a hash of the old path.
+  Harmless while the index is final. A later rescan would re-extract the file and create a
+  second `Duplicate` alongside it, which is a cost rather than a correctness problem.

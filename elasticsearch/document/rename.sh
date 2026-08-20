@@ -409,7 +409,11 @@ if (( ${#dir_order[@]} > 0 )); then
   done
 fi
 
-$script_dir/../index/refresh.sh "$index" > /dev/null
+if ! refresh_output=$($script_dir/../index/refresh.sh "$index" 2>&1); then
+  log_error "Failed to refresh $index after renaming"
+  printf '%s\n' "$refresh_output"
+  exit 1
+fi
 
 echo
 log_info "Updated $TOTAL_UPDATED documents in the file pass"
