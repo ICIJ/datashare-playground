@@ -136,6 +136,8 @@ monitor_es_task() {
             if [[ "$failures" != "0" && "$failures" != "null" ]]; then
                 if [ -t 1 ]; then
                     spinner_error "$message"
+                else
+                    log_error "$message failed"
                 fi
                 return 1
             fi
