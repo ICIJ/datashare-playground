@@ -499,3 +499,20 @@ field() {
     run ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --verify
     assert_success
 }
+
+@test "attributes per-rule counts to the right directory entry" {
+    seed b1 '{"type":"Document","path":"/data/bb/f1.pdf","dirname":"/data/bb"}'
+    seed b2 '{"type":"Document","path":"/data/bb/f2.pdf","dirname":"/data/bb"}'
+    seed a1 '{"type":"Document","path":"/data/aaa/g1.pdf","dirname":"/data/aaa"}'
+
+    # shortest first, so a descending-length sort permutes the two entries
+    {
+      entry dir /data/bb  /data/yy  nfc
+      entry dir /data/aaa /data/xxx punct
+    } > "$MANIFEST"
+
+    run ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --dry-run
+    assert_success
+    assert_line --regexp 'nfc +1 +1 +2 +0'
+    assert_line --regexp 'punct +1 +1 +1 +0'
+}
