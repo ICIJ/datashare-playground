@@ -147,22 +147,18 @@ for p in "${file_new[@]}" "${dir_new[@]}"; do
   fi
 done
 
-# Deepest-first, because a descendant path is always longer than its ancestor.
-# Only length/index pairs go through sort, never a path, so a path containing a
-# newline cannot corrupt the ordering.
-if (( ${#dir_old[@]} > 1 )); then
-  sorted_old=(); sorted_new=()
-  while IFS=$'\t' read -r _ i; do
-    sorted_old+=("${dir_old[i]}")
-    sorted_new+=("${dir_new[i]}")
-  done < <(
-    for i in "${!dir_old[@]}"; do
-      printf '%s\t%s\n' "${#dir_old[i]}" "$i"
-    done | sort -rn -k1,1
-  )
-  dir_old=("${sorted_old[@]}")
-  dir_new=("${sorted_new[@]}")
-fi
+# deepest-first iteration order; a descendant path is always longer than its ancestor.
+# Only length/index pairs pass through sort, never a path, so a path containing a
+# newline cannot corrupt the ordering. The path arrays keep manifest order, because
+# path_of_entry indexes them by manifest position.
+dir_order=()
+while IFS=$'\t' read -r _ i; do
+  dir_order+=("$i")
+done < <(
+  for i in "${!dir_old[@]}"; do
+    printf '%s\t%s\n' "${#dir_old[i]}" "$i"
+  done | sort -rn -k1,1
+)
 
 # Per-path document counts in one request per batch. A requested path absent from
 # the buckets matched nothing. Populates the COUNT_OF associative array.
@@ -406,8 +402,8 @@ if (( ${#file_old[@]} > 0 )); then
   fi
 fi
 
-if (( ${#dir_old[@]} > 0 )); then
-  for i in "${!dir_old[@]}"; do
+if (( ${#dir_order[@]} > 0 )); then
+  for i in "${dir_order[@]}"; do
     echo
     $script_dir/move.sh "$index" "${dir_old[i]}" "${dir_new[i]}"
   done
