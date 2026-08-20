@@ -42,7 +42,7 @@ while [[ $# -gt 0 ]]; do
         log_error "--batch-size expects a positive integer"
         exit 1
       fi
-      batch_size=$2
+      batch_size=$((10#$2))
       shift 2
       ;;
     *)
@@ -173,7 +173,6 @@ if [[ -n $host_prefix ]]; then
   log_kv "Mapping" "$host_prefix -> $index_prefix"
 fi
 
-# Report grouped by the rules that fired
 declare -A rules_entries
 for r in "${entry_rules[@]}"; do
   rules_entries[$r]=$(( ${rules_entries[$r]:-0} + 1 ))
@@ -191,3 +190,77 @@ log_kv "Modes seen" "$(printf '%s ' "${!modes_seen[@]}")"
 if [[ $dry_run == true ]]; then
   exit 0
 fi
+
+TOTAL_UPDATED=0
+
+# Start an async _update_by_query, wait for it, then read the stored task response.
+# monitor_es_task discards that response, and the failure and conflict counts are
+# the only evidence that a batch actually landed.
+run_update() {
+  local body=$1 label=$2
+  local result task_id response failures conflicts
+
+  result=$(curl -sXPOST "$ELASTICSEARCH_URL/$index/_update_by_query?wait_for_completion=false" \
+    -H 'Content-Type: application/json' -d "$body")
+  task_id=$(printf %s "$result" | jq -r '.task')
+
+  if [[ "$task_id" == "null" || -z "$task_id" ]]; then
+    log_error "Failed to start $label"
+    printf %s "$result" | jq -r '.error.reason // empty'
+    exit 1
+  fi
+
+  # returns non-zero on failures, which we report ourselves with more detail
+  monitor_es_task "$task_id" "$label" || true
+
+  response=$(curl -s "$ELASTICSEARCH_URL/_tasks/$task_id" | jq -c '.response')
+  failures=$(printf %s "$response" | jq -r '.failures | length')
+  conflicts=$(printf %s "$response" | jq -r '.version_conflicts')
+
+  if [[ "$failures" != "0" || "$conflicts" != "0" ]]; then
+    log_error "$label: $failures failures, $conflicts version conflicts"
+    printf %s "$response" | jq -r '.failures[0] // empty'
+    log_error "Re-run the same command to retry. Both passes match on old paths, so a full replay is idempotent."
+    exit 1
+  fi
+
+  UPDATED=$(printf %s "$response" | jq -r '.updated')
+  TOTAL_UPDATED=$((TOTAL_UPDATED + UPDATED))
+}
+
+# One _update_by_query per batch. Arguments are a flat old new old new list.
+update_files() {
+  local body
+  body=$(jq -nc --args '
+    ($ARGS.positional | length) as $n
+    | [ range(0; $n; 2) ] as $ix
+    | {
+        query: { terms: { path: [ $ix[] | $ARGS.positional[.] ] } },
+        script: {
+          lang: "painless",
+          source: "ctx._source.path = params.map.get(ctx._source.path)",
+          params: { map: ( [ $ix[] | { ($ARGS.positional[.]): $ARGS.positional[.+1] } ] | add ) }
+        }
+      }' "$@")
+  run_update "$body" "Rename files"
+}
+
+if (( ${#file_old[@]} > 0 )); then
+  echo
+  batch=()
+  for i in "${!file_old[@]}"; do
+    batch+=("${file_old[i]}" "${file_new[i]}")
+    if (( ${#batch[@]} / 2 == batch_size )); then
+      update_files "${batch[@]}"
+      batch=()
+    fi
+  done
+  if (( ${#batch[@]} > 0 )); then
+    update_files "${batch[@]}"
+  fi
+fi
+
+$script_dir/../index/refresh.sh "$index" > /dev/null
+
+echo
+log_info "Updated $TOTAL_UPDATED documents"

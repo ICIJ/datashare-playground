@@ -35,7 +35,6 @@ entry() {
     '{kind:$k, old_b64:$o, new_b64:$n, rules:($r|split(",")), mode:$m}'
 }
 
-# Emit a meta line, which the reader must ignore
 meta() {
   jq -nc --arg r "$(printf %s "$1" | base64 -w0)" \
     '{meta:{root_b64:$r, root:"printable", argv:["pystou","normalize"]}}'
@@ -186,4 +185,146 @@ field() {
     curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_refresh" > /dev/null
 
     assert_equal "$(field keep path)" "/data/a.pdf"
+}
+
+@test "renames a file and leaves its title alone" {
+    seed doc '{"type":"Document","path":"/data/plain.pdf","dirname":"/data","title":"Q3 budget"}'
+    entry file /data/plain.pdf /data/clean.pdf > "$MANIFEST"
+
+    run ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    assert_success
+    curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_refresh" > /dev/null
+
+    assert_equal "$(field doc path)" "/data/clean.pdf"
+    assert_equal "$(field doc title)" "Q3 budget"
+    assert_equal "$(field doc dirname)" "/data"
+}
+
+@test "renames Duplicate documents sharing the renamed path" {
+    seed doc '{"type":"Document","path":"/data/plain.pdf","dirname":"/data"}'
+    seed dup '{"type":"Duplicate","path":"/data/plain.pdf","documentId":"doc"}'
+    entry file /data/plain.pdf /data/clean.pdf > "$MANIFEST"
+
+    ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_refresh" > /dev/null
+
+    assert_equal "$(field dup path)" "/data/clean.pdf"
+}
+
+@test "renames every embedded document sharing the container path" {
+    seed root  '{"type":"Document","path":"/data/mail.eml","dirname":"/data","title":"Subject"}'
+    seed child '{"type":"Document","path":"/data/mail.eml","dirname":"/data","title":"attach.xls","extractionLevel":1,"parentDocument":"root"}'
+    entry file /data/mail.eml /data/mail-clean.eml > "$MANIFEST"
+
+    ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_refresh" > /dev/null
+
+    assert_equal "$(field root path)" "/data/mail-clean.eml"
+    assert_equal "$(field child path)" "/data/mail-clean.eml"
+    assert_equal "$(field child title)" "attach.xls"
+}
+
+@test "renames a document whose indexed path holds a replacement character" {
+    # what Java stored after decoding a non-UTF-8 filename
+    seed lossy "$(jq -nc '{type:"Document", path:"/data/caf�.pdf", dirname:"/data"}')"
+    # what pystou recorded: the raw byte
+    entry file "$(printf '/data/caf\xe9.pdf')" /data/cafe.pdf utf8 > "$MANIFEST"
+
+    ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_refresh" > /dev/null
+
+    assert_equal "$(field lossy path)" "/data/cafe.pdf"
+}
+
+@test "renames a path containing a quote and a tab" {
+    seed weird "$(jq -nc '{type:"Document", path:"/data/we\"ird\tname.pdf", dirname:"/data"}')"
+    entry file "$(printf '/data/we"ird\tname.pdf')" /data/weird-name.pdf control,punct > "$MANIFEST"
+
+    ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_refresh" > /dev/null
+
+    assert_equal "$(field weird path)" "/data/weird-name.pdf"
+}
+
+@test "renames a path ending in a newline" {
+    seed nl "$(jq -nc '{type:"Document", path:"/data/trailing\n", dirname:"/data"}')"
+
+    # $(...) strips trailing newlines, so the same printf x guard the production
+    # decode() uses is needed here or this test silently checks nothing
+    local nl_path
+    nl_path=$(printf '/data/trailing\n'; printf x)
+    nl_path=${nl_path%x}
+
+    entry file "$nl_path" /data/trailing control > "$MANIFEST"
+
+    ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_refresh" > /dev/null
+
+    # compared as base64: field() captures through $(...), which strips a trailing
+    # newline and would make this assertion pass against an unrenamed document
+    local got want
+    got=$(curl -s "$ELASTICSEARCH_URL/$TEST_INDEX/_doc/nl" | jq -r '._source.path | @base64')
+    want=$(printf %s '/data/trailing' | base64 -w0)
+    assert_equal "$got" "$want"
+}
+
+@test "spans more than one batch" {
+    for i in 1 2 3 4; do
+      seed "b$i" "$(jq -nc --arg p "/data/b$i.pdf" '{type:"Document", path:$p, dirname:"/data"}')"
+    done
+    {
+      entry file /data/b1.pdf /data/c1.pdf
+      entry file /data/b2.pdf /data/c2.pdf
+      entry file /data/b3.pdf /data/c3.pdf
+      entry file /data/b4.pdf /data/c4.pdf
+    } > "$MANIFEST"
+
+    ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --batch-size 2
+    curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_refresh" > /dev/null
+
+    assert_equal "$(field b1 path)" "/data/c1.pdf"
+    assert_equal "$(field b4 path)" "/data/c4.pdf"
+}
+
+@test "is idempotent when run twice" {
+    seed doc '{"type":"Document","path":"/data/plain.pdf","dirname":"/data"}'
+    entry file /data/plain.pdf /data/clean.pdf > "$MANIFEST"
+
+    ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    run ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    assert_success
+    curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_refresh" > /dev/null
+
+    assert_equal "$(field doc path)" "/data/clean.pdf"
+}
+
+@test "does not rename a document whose path only shares a prefix" {
+    seed exact  '{"type":"Document","path":"/data/plain.pdf","dirname":"/data"}'
+    seed longer '{"type":"Document","path":"/data/plain.pdf.bak","dirname":"/data"}'
+    entry file /data/plain.pdf /data/clean.pdf > "$MANIFEST"
+
+    ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_refresh" > /dev/null
+
+    assert_equal "$(field exact path)" "/data/clean.pdf"
+    assert_equal "$(field longer path)" "/data/plain.pdf.bak"
+}
+
+@test "accepts --batch-size with leading zeros" {
+    for i in 1 2 3 4; do
+      seed "z$i" "$(jq -nc --arg p "/data/z$i.pdf" '{type:"Document", path:$p, dirname:"/data"}')"
+    done
+    {
+      entry file /data/z1.pdf /data/y1.pdf
+      entry file /data/z2.pdf /data/y2.pdf
+      entry file /data/z3.pdf /data/y3.pdf
+      entry file /data/z4.pdf /data/y4.pdf
+    } > "$MANIFEST"
+
+    run ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --batch-size 008
+    assert_success
+    curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_refresh" > /dev/null
+
+    assert_equal "$(field z1 path)" "/data/y1.pdf"
+    assert_equal "$(field z4 path)" "/data/y4.pdf"
 }
