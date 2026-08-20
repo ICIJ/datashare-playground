@@ -164,6 +164,91 @@ if (( ${#dir_old[@]} > 1 )); then
   dir_new=("${sorted_new[@]}")
 fi
 
+# Per-path document counts in one request per batch. A requested path absent from
+# the buckets matched nothing. Populates the COUNT_OF associative array.
+declare -A COUNT_OF
+
+count_file_paths() {
+  local body buckets
+  while (( $# > 0 )); do
+    local chunk=("${@:1:batch_size}")
+    shift $(( ${#chunk[@]} ))
+
+    body=$(jq -nc --args '{
+      size: 0,
+      query: { terms: { path: $ARGS.positional } },
+      aggs: { by_path: { terms: { field: "path", size: ($ARGS.positional | length) } } }
+    }' "${chunk[@]}")
+
+    buckets=$(curl -s "$ELASTICSEARCH_URL/$index/_search" \
+      -H 'Content-Type: application/json' -d "$body" \
+      | jq -r '.aggregations.by_path.buckets[] | "\(.doc_count)\t\(.key)"')
+
+    while IFS=$'\t' read -r c k; do
+      [[ -n $k ]] && COUNT_OF[$k]=$c
+    done <<< "$buckets"
+  done
+  # An empty last batch leaves $k unset on the final read, so the loop's own
+  # exit status would be false; under bash -e that aborts the caller.
+  return 0
+}
+
+# Document counts beneath each directory prefix. Filters are named by ordinal
+# because naming them after the paths breaks on the first path containing a dot.
+count_dir_prefixes() {
+  local body counts i=0
+  local dirs=("$@")
+  while (( i < ${#dirs[@]} )); do
+    local chunk=("${dirs[@]:i:200}")
+
+    body=$(jq -nc --args '{
+      size: 0,
+      aggs: { dirs: { filters: { filters: (
+        [ $ARGS.positional | to_entries[]
+          | { key: (.key | tostring), value: { prefix: { path: (.value + "/") } } } ]
+        | from_entries
+      ) } } }
+    }' "${chunk[@]}")
+
+    counts=$(curl -s "$ELASTICSEARCH_URL/$index/_search" \
+      -H 'Content-Type: application/json' -d "$body" \
+      | jq -r '.aggregations.dirs.buckets | to_entries[] | "\(.key)\t\(.value.doc_count)"')
+
+    while IFS=$'\t' read -r ord c; do
+      [[ -n $ord ]] && COUNT_OF[${chunk[ord]}]=$c
+    done <<< "$counts"
+
+    i=$(( i + 200 ))
+  done
+}
+
+# Fill COUNT_OF for one side of the rename. $1 is 'old' or 'new'.
+count_side() {
+  COUNT_OF=()
+  if [[ $1 == old ]]; then
+    (( ${#file_old[@]} > 0 )) && count_file_paths "${file_old[@]}"
+    (( ${#dir_old[@]} > 0 ))  && count_dir_prefixes "${dir_old[@]}"
+  else
+    (( ${#file_new[@]} > 0 )) && count_file_paths "${file_new[@]}"
+    (( ${#dir_new[@]} > 0 ))  && count_dir_prefixes "${dir_new[@]}"
+  fi
+  return 0
+}
+
+# The path an entry is keyed on, per side. Entries are stored split by kind, so
+# walk them in the same order the reader appended them.
+path_of_entry() {
+  local i=$1 side=$2 f=0 d=0 j
+  for (( j = 0; j < i; j++ )); do
+    if [[ ${entry_kind[j]} == file ]]; then f=$(( f + 1 )); else d=$(( d + 1 )); fi
+  done
+  if [[ ${entry_kind[i]} == file ]]; then
+    [[ $side == old ]] && REPLY=${file_old[f]} || REPLY=${file_new[f]}
+  else
+    [[ $side == old ]] && REPLY=${dir_old[d]} || REPLY=${dir_new[d]}
+  fi
+}
+
 log_title "Rename Documents: $index"
 
 log_kv "Manifest" "$manifest"
@@ -173,21 +258,82 @@ if [[ -n $host_prefix ]]; then
   log_kv "Mapping" "$host_prefix -> $index_prefix"
 fi
 
-declare -A rules_entries
-for r in "${entry_rules[@]}"; do
+count_side old
+
+declare -A rules_entries rules_matched rules_docs
+missing=()
+
+for i in "${!entry_rules[@]}"; do
+  r=${entry_rules[i]}
+  path_of_entry "$i" old
+  c=${COUNT_OF[$REPLY]:-0}
+
   rules_entries[$r]=$(( ${rules_entries[$r]:-0} + 1 ))
+  rules_docs[$r]=$(( ${rules_docs[$r]:-0} + c ))
+  if (( c > 0 )); then
+    rules_matched[$r]=$(( ${rules_matched[$r]:-0} + 1 ))
+  else
+    missing+=("$REPLY")
+  fi
 done
 
 echo
-table_header "RULES:30" "ENTRIES:10"
+table_header "RULES:30" "ENTRIES:10" "MATCHED:10" "DOCS:10" "MISSING:10"
 for r in "${!rules_entries[@]}"; do
-  table_row "$r" "${rules_entries[$r]}" -- 30 10
+  table_row "$r" \
+    "${rules_entries[$r]}" \
+    "${rules_matched[$r]:-0}" \
+    "${rules_docs[$r]:-0}" \
+    "$(( ${rules_entries[$r]} - ${rules_matched[$r]:-0} ))" \
+    -- 30 10 10 10 10
 done
+
+if (( ${#missing[@]} > 0 )); then
+  echo
+  log_warn "${#missing[@]} entries match no document:"
+  for p in "${missing[@]:0:20}"; do
+    log_info "  $p"
+  done
+  if (( ${#missing[@]} > 20 )); then
+    log_info "  ... and $(( ${#missing[@]} - 20 )) more"
+  fi
+fi
 
 echo
 log_kv "Modes seen" "$(printf '%s ' "${!modes_seen[@]}")"
 
 if [[ $dry_run == true ]]; then
+  exit 0
+fi
+
+if [[ $verify == true ]]; then
+  problems=0
+
+  count_side new
+  for i in "${!entry_kind[@]}"; do
+    path_of_entry "$i" new
+    # at least one, not exactly one: embedded documents share their container's path
+    if (( ${COUNT_OF[$REPLY]:-0} < 1 )); then
+      log_error "New path has no document: $REPLY"
+      problems=$(( problems + 1 ))
+    fi
+  done
+
+  count_side old
+  for i in "${!entry_kind[@]}"; do
+    path_of_entry "$i" old
+    if (( ${COUNT_OF[$REPLY]:-0} > 0 )); then
+      log_error "Old path still has ${COUNT_OF[$REPLY]} documents: $REPLY"
+      problems=$(( problems + 1 ))
+    fi
+  done
+
+  echo
+  if (( problems > 0 )); then
+    log_error "Verification failed with $problems problems"
+    exit 1
+  fi
+  log_info "Verified $n entries"
   exit 0
 fi
 
@@ -270,4 +416,7 @@ fi
 $script_dir/../index/refresh.sh "$index" > /dev/null
 
 echo
-log_info "Updated $TOTAL_UPDATED documents"
+log_info "Updated $TOTAL_UPDATED documents in the file pass"
+if (( ${#dir_old[@]} > 0 )); then
+  log_info "Processed ${#dir_old[@]} directories"
+fi

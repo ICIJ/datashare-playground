@@ -404,3 +404,98 @@ field() {
     assert_equal "$(field inside path)" "/data/new/x.pdf"
     assert_equal "$(field inside dirname)" "/data/new"
 }
+
+@test "a dry run counts documents matching the old paths" {
+    seed present '{"type":"Document","path":"/data/here.pdf","dirname":"/data"}'
+    {
+      entry file /data/here.pdf   /data/here-clean.pdf   nfc
+      entry file /data/absent.pdf /data/absent-clean.pdf nfc
+    } > "$MANIFEST"
+
+    run ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --dry-run
+    assert_success
+    # nfc: 2 entries, 1 matched, 1 document, 1 missing
+    assert_line --regexp 'nfc +2 +1 +1 +1'
+}
+
+@test "a dry run counts every embedded document sharing a path" {
+    seed root  '{"type":"Document","path":"/data/mail.eml","dirname":"/data"}'
+    seed child '{"type":"Document","path":"/data/mail.eml","dirname":"/data","extractionLevel":1}'
+    entry file /data/mail.eml /data/mail-clean.eml nfc > "$MANIFEST"
+
+    run ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --dry-run
+    assert_success
+    # 1 entry, 1 matched, 2 documents, 0 missing
+    assert_line --regexp 'nfc +1 +1 +2 +0'
+}
+
+@test "a dry run separates a utf8 bucket with no documents from a matching nfc bucket" {
+    seed present '{"type":"Document","path":"/data/here.pdf","dirname":"/data"}'
+    {
+      entry file /data/here.pdf                    /data/here-clean.pdf nfc
+      entry file "$(printf '/data/gone\xe9.pdf')"   /data/gone.pdf       utf8
+    } > "$MANIFEST"
+
+    run ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --dry-run
+    assert_success
+    assert_line --regexp 'nfc +1 +1 +1 +0'
+    assert_line --regexp 'utf8 +1 +0 +0 +1'
+}
+
+@test "a dry run lists the entries that match nothing" {
+    entry file /data/absent.pdf /data/absent-clean.pdf > "$MANIFEST"
+
+    run ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --dry-run
+    assert_success
+    assert_output --partial "/data/absent.pdf"
+}
+
+@test "a dry run counts documents under a renamed directory" {
+    seed a '{"type":"Document","path":"/data/old/a.pdf","dirname":"/data/old"}'
+    seed b '{"type":"Document","path":"/data/old/b.pdf","dirname":"/data/old"}'
+    entry dir /data/old /data/new punct > "$MANIFEST"
+
+    run ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --dry-run
+    assert_success
+    assert_line --regexp 'punct +1 +1 +2 +0'
+}
+
+@test "verify succeeds after a successful rename" {
+    seed doc '{"type":"Document","path":"/data/plain.pdf","dirname":"/data"}'
+    entry file /data/plain.pdf /data/clean.pdf > "$MANIFEST"
+
+    ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    run ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --verify
+    assert_success
+}
+
+@test "verify fails when the rename never happened" {
+    bats_require_minimum_version 1.5.0
+
+    seed doc '{"type":"Document","path":"/data/plain.pdf","dirname":"/data"}'
+    entry file /data/plain.pdf /data/clean.pdf > "$MANIFEST"
+
+    run ! ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --verify
+    assert_output --partial "/data/clean.pdf"
+}
+
+@test "verify fails when an old path still has documents" {
+    bats_require_minimum_version 1.5.0
+
+    # both paths present: the new one exists but the old one was never cleared
+    seed old '{"type":"Document","path":"/data/plain.pdf","dirname":"/data"}'
+    seed new '{"type":"Document","path":"/data/clean.pdf","dirname":"/data"}'
+    entry file /data/plain.pdf /data/clean.pdf > "$MANIFEST"
+
+    run ! ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --verify
+    assert_output --partial "/data/plain.pdf"
+}
+
+@test "verify accepts a directory rename" {
+    seed inside '{"type":"Document","path":"/data/old/x.pdf","dirname":"/data/old"}'
+    entry dir /data/old /data/new > "$MANIFEST"
+
+    ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    run ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --verify
+    assert_success
+}
