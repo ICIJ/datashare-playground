@@ -258,6 +258,11 @@ find /home/foo/bar -type f | ./redis/queue/rpush.sh extract:queue
 ./elasticsearch/document/rename.sh my-index run-42.jsonl --map /mnt/nas/leak=/home/datashare/data --verify
 ```
 
+`--verify` fails only when an old path still holds documents, which is what proves the
+update landed. Entries with no document at their new path are reported as a warning count
+instead, because the index cannot tell "never indexed" apart from "the rename lost it" and
+the `MISSING` entries from step 1 are expected to stay missing.
+
 If a run fails part way through, re-run the identical command. Both passes match on the old
 paths, which no longer exist once applied, so a replay is idempotent.
 

@@ -21,7 +21,7 @@ batch_size=1000
 while [[ $# -gt 0 ]]; do
   case $1 in
     --map)
-      if [[ ${2:-} != *=* ]]; then
+      if [[ ${2:-} != ?*=?* ]]; then
         log_error "--map expects <host_prefix>=<index_prefix>"
         exit 1
       fi
@@ -112,8 +112,8 @@ while IFS=$'\t' read -r kind old_b64 new_b64 rules mode; do
   fi
 
   entry_kind+=("$kind")
-  entry_rules+=("${rules:-none}")
-  modes_seen[${mode:-none}]=1
+  entry_rules+=("$rules")
+  modes_seen[$mode]=1
 
   if [[ $kind == file ]]; then
     file_old+=("$old")
@@ -126,9 +126,15 @@ done < <(jq -r 'select(.kind) | [
            .kind,
            (.old_b64 | @base64d | @base64),
            (.new_b64 | @base64d | @base64),
-           (.rules // [] | join(",")),
-           (.mode // "")
+           (.rules // [] | join(",") | if . == "" then "none" else . end),
+           (.mode // "" | if . == "" then "none" else . end)
          ] | @tsv' "$manifest")
+
+expected=$(jq -rs '[.[] | select(.kind)] | length' "$manifest")
+if (( n != expected )); then
+  log_error "Reader processed $n of $expected entries: the manifest has a malformed entry"
+  exit 1
+fi
 
 total_objects=$(jq -rs 'length' "$manifest")
 skipped=$((total_objects - n))
@@ -160,6 +166,19 @@ done < <(
   done | sort -rn -k1,1
 )
 
+# The path an entry's new path ends up at, once every directory rename has been
+# applied. dir_order is the real application order, so replaying it in that order
+# reproduces what the index holds.
+final_path() {
+  local p=$1 i
+  for i in "${dir_order[@]}"; do
+    if [[ $p == "${dir_old[i]}" || $p == "${dir_old[i]}"/* ]]; then
+      p=${dir_new[i]}${p#"${dir_old[i]}"}
+    fi
+  done
+  REPLY=$p
+}
+
 # Per-path document counts in one request per batch. A requested path absent from
 # the buckets matched nothing. Populates the COUNT_OF associative array.
 declare -A COUNT_OF
@@ -178,10 +197,11 @@ count_file_paths() {
 
     buckets=$(curl -s "$ELASTICSEARCH_URL/$index/_search" \
       -H 'Content-Type: application/json' -d "$body" \
-      | jq -r '.aggregations.by_path.buckets[] | "\(.doc_count)\t\(.key)"')
+      | jq -r '.aggregations.by_path.buckets[] | "\(.doc_count)\t\(.key|@base64)"')
 
     while IFS=$'\t' read -r c k; do
-      [[ -n $k ]] && COUNT_OF[$k]=$c
+      [[ -n $k ]] || continue
+      decode "$k"; COUNT_OF[$REPLY]=$c
     done <<< "$buckets"
   done
   # An empty last batch leaves $k unset on the final read, so the loop's own
@@ -225,8 +245,12 @@ count_side() {
     (( ${#file_old[@]} > 0 )) && count_file_paths "${file_old[@]}"
     (( ${#dir_old[@]} > 0 ))  && count_dir_prefixes "${dir_old[@]}"
   else
-    (( ${#file_new[@]} > 0 )) && count_file_paths "${file_new[@]}"
-    (( ${#dir_new[@]} > 0 ))  && count_dir_prefixes "${dir_new[@]}"
+    local composed=() p
+    for p in "${file_new[@]}"; do final_path "$p"; composed+=("$REPLY"); done
+    (( ${#composed[@]} > 0 )) && count_file_paths "${composed[@]}"
+    composed=()
+    for p in "${dir_new[@]}"; do final_path "$p"; composed+=("$REPLY"); done
+    (( ${#composed[@]} > 0 )) && count_dir_prefixes "${composed[@]}"
   fi
   return 0
 }
@@ -288,7 +312,7 @@ if (( ${#missing[@]} > 0 )); then
   echo
   log_warn "${#missing[@]} entries match no document:"
   for p in "${missing[@]:0:20}"; do
-    log_info "  $p"
+    printf '  %q\n' "$p"
   done
   if (( ${#missing[@]} > 20 )); then
     log_info "  ... and $(( ${#missing[@]} - 20 )) more"
@@ -304,14 +328,15 @@ fi
 
 if [[ $verify == true ]]; then
   problems=0
+  unindexed=0
 
   count_side new
   for i in "${!entry_kind[@]}"; do
     path_of_entry "$i" new
+    final_path "$REPLY"
     # at least one, not exactly one: embedded documents share their container's path
     if (( ${COUNT_OF[$REPLY]:-0} < 1 )); then
-      log_error "New path has no document: $REPLY"
-      problems=$(( problems + 1 ))
+      unindexed=$(( unindexed + 1 ))
     fi
   done
 
@@ -325,6 +350,9 @@ if [[ $verify == true ]]; then
   done
 
   echo
+  if (( unindexed > 0 )); then
+    log_warn "$unindexed entries have no document at their new path: either never indexed, or the rename lost them"
+  fi
   if (( problems > 0 )); then
     log_error "Verification failed with $problems problems"
     exit 1
@@ -340,7 +368,7 @@ TOTAL_UPDATED=0
 # the only evidence that a batch actually landed.
 run_update() {
   local body=$1 label=$2
-  local result task_id response failures conflicts
+  local result task_id response failures conflicts updated
 
   result=$(curl -sXPOST "$ELASTICSEARCH_URL/$index/_update_by_query?wait_for_completion=false&refresh=true" \
     -H 'Content-Type: application/json' -d "$body")
@@ -366,8 +394,8 @@ run_update() {
     exit 1
   fi
 
-  UPDATED=$(printf %s "$response" | jq -r '.updated')
-  TOTAL_UPDATED=$((TOTAL_UPDATED + UPDATED))
+  updated=$(printf %s "$response" | jq -r '.updated')
+  TOTAL_UPDATED=$((TOTAL_UPDATED + updated))
 }
 
 # One _update_by_query per batch. Arguments are a flat old new old new list.
