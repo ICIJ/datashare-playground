@@ -17,44 +17,24 @@ log_title "Move Documents: $index"
 log_kv "From" "$path"
 log_kv "To" "$new_path"
 
-# Script to be used in the update by query
+# The slashed prefix is a param so the painless source needs no character literals
 script='
-  if (ctx._source.path != null) {
-    ctx._source.path = ctx._source.path.replace(params.path, params.new_path);
-  }
-
-  if (ctx._source.dirname != null) {
-    ctx._source.dirname = ctx._source.dirname.replace(params.path, params.new_path);
-  }
+if (ctx._source.path != null && ctx._source.path.startsWith(params.old_prefix)) {
+  ctx._source.path = params.new + ctx._source.path.substring(params.old.length());
+}
+if (ctx._source.dirname != null && (ctx._source.dirname == params.old || ctx._source.dirname.startsWith(params.old_prefix))) {
+  ctx._source.dirname = params.new + ctx._source.dirname.substring(params.old.length());
+}
 '
 
-# Building the request body for the update by query
-body='{
-  "query": {
-    "bool" : {
-      "must" : [
-        {
-          "prefix": {
-            "dirname": "'"${path}"'"
-          }
-        },
-        {
-          "term" : {
-            "type" : "Document"
-          }
-        }
-      ]
-    }
-  },
-  "script": {
-    "source": "'"${script//$'\n'/}"'",
-    "lang": "painless",
-    "params": {
-      "path": "'"${path}"'",
-      "new_path": "'"${new_path}"'"
-    }
+body=$(jq -nc --arg old "$path" --arg new "$new_path" --arg src "$script" '{
+  query: { prefix: { path: ($old + "/") } },
+  script: {
+    lang: "painless",
+    source: $src,
+    params: { old: $old, new: $new, old_prefix: ($old + "/") }
   }
-}'
+}')
 
 # Start async update
 result=$(curl -sXPOST "$ELASTICSEARCH_URL/$index/_update_by_query?wait_for_completion=false" -H 'Content-Type: application/json' -d "$body")
