@@ -200,7 +200,7 @@ run_update() {
   local body=$1 label=$2
   local result task_id response failures conflicts
 
-  result=$(curl -sXPOST "$ELASTICSEARCH_URL/$index/_update_by_query?wait_for_completion=false" \
+  result=$(curl -sXPOST "$ELASTICSEARCH_URL/$index/_update_by_query?wait_for_completion=false&refresh=true" \
     -H 'Content-Type: application/json' -d "$body")
   task_id=$(printf %s "$result" | jq -r '.task')
 
@@ -258,6 +258,13 @@ if (( ${#file_old[@]} > 0 )); then
   if (( ${#batch[@]} > 0 )); then
     update_files "${batch[@]}"
   fi
+fi
+
+if (( ${#dir_old[@]} > 0 )); then
+  for i in "${!dir_old[@]}"; do
+    echo
+    $script_dir/move.sh "$index" "${dir_old[i]}" "${dir_new[i]}"
+  done
 fi
 
 $script_dir/../index/refresh.sh "$index" > /dev/null

@@ -328,3 +328,79 @@ field() {
     assert_equal "$(field z1 path)" "/data/y1.pdf"
     assert_equal "$(field z4 path)" "/data/y4.pdf"
 }
+
+@test "renames a directory, rewriting path and dirname" {
+    seed inside '{"type":"Document","path":"/data/old/x.pdf","dirname":"/data/old"}'
+    entry dir /data/old /data/new > "$MANIFEST"
+
+    ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_refresh" > /dev/null
+
+    assert_equal "$(field inside path)" "/data/new/x.pdf"
+    assert_equal "$(field inside dirname)" "/data/new"
+}
+
+@test "applies nested directory renames deepest-first regardless of manifest order" {
+    seed deep '{"type":"Document","path":"/data/a/b/x.pdf","dirname":"/data/a/b"}'
+    # shallowest first, the opposite of the order it must be applied in
+    {
+      entry dir /data/a   /data/z
+      entry dir /data/a/b /data/a/c
+    } > "$MANIFEST"
+
+    ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_refresh" > /dev/null
+
+    assert_equal "$(field deep path)" "/data/z/c/x.pdf"
+    assert_equal "$(field deep dirname)" "/data/z/c"
+}
+
+@test "applies file renames before directory renames" {
+    seed both '{"type":"Document","path":"/data/old/a.pdf","dirname":"/data/old"}'
+    # manifest order is bottom-up: the file entry precedes its containing dir
+    {
+      entry file /data/old/a.pdf /data/old/b.pdf
+      entry dir  /data/old       /data/new
+    } > "$MANIFEST"
+
+    ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_refresh" > /dev/null
+
+    assert_equal "$(field both path)" "/data/new/b.pdf"
+    assert_equal "$(field both dirname)" "/data/new"
+}
+
+@test "a directory rename moves Duplicate documents beneath it" {
+    seed dup '{"type":"Duplicate","path":"/data/old/x.pdf","documentId":"gone"}'
+    entry dir /data/old /data/new > "$MANIFEST"
+
+    ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_refresh" > /dev/null
+
+    assert_equal "$(field dup path)" "/data/new/x.pdf"
+}
+
+@test "a directory rename does not touch a sibling sharing a name prefix" {
+    seed inside  '{"type":"Document","path":"/data/old/x.pdf","dirname":"/data/old"}'
+    seed sibling '{"type":"Document","path":"/data/oldish/y.pdf","dirname":"/data/oldish"}'
+    entry dir /data/old /data/new > "$MANIFEST"
+
+    ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_refresh" > /dev/null
+
+    assert_equal "$(field inside path)" "/data/new/x.pdf"
+    assert_equal "$(field sibling path)" "/data/oldish/y.pdf"
+}
+
+@test "a directory rename is idempotent when run twice" {
+    seed inside '{"type":"Document","path":"/data/old/x.pdf","dirname":"/data/old"}'
+    entry dir /data/old /data/new > "$MANIFEST"
+
+    ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    run ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    assert_success
+    curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_refresh" > /dev/null
+
+    assert_equal "$(field inside path)" "/data/new/x.pdf"
+    assert_equal "$(field inside dirname)" "/data/new"
+}
