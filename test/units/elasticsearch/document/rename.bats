@@ -7,7 +7,7 @@ setup() {
   fi
   export ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-http://elasticsearch:9200}
 
-  TEST_INDEX="bats.document.rename"
+  TEST_INDEX="bats.document.rename.$$"
   H_CONTENT_TYPE="Content-Type: application/json"
   MANIFEST="$BATS_TEST_TMPDIR/manifest.jsonl"
 
@@ -20,6 +20,8 @@ setup() {
 }
 
 teardown() {
+  curl -sXPUT "$ELASTICSEARCH_URL/$TEST_INDEX/_settings" -H "$H_CONTENT_TYPE" \
+    -d '{"index":{"blocks.write":false}}' > /dev/null 2>&1 || true
   curl -sXDELETE "$ELASTICSEARCH_URL/$TEST_INDEX" > /dev/null 2>&1 || true
 }
 
@@ -486,7 +488,7 @@ field() {
     entry file /data/plain.pdf /data/clean.pdf > "$MANIFEST"
 
     run ! ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --verify
-    assert_output --partial "/data/clean.pdf"
+    assert_output --partial "Old path still has 1 documents: /data/plain.pdf"
 }
 
 @test "verify fails when an old path still has documents" {
@@ -525,4 +527,101 @@ field() {
     assert_success
     assert_line --regexp 'nfc +1 +1 +2 +0'
     assert_line --regexp 'punct +1 +1 +1 +0'
+}
+
+@test "rejects a --map with an empty prefix" {
+    bats_require_minimum_version 1.5.0
+
+    entry file /data/a.pdf /data/b.pdf > "$MANIFEST"
+
+    run ! ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --map =/data
+    assert_output --partial "--map expects"
+
+    run ! ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --map /mnt/nas=
+    assert_output --partial "--map expects"
+}
+
+@test "reads an entry whose rules list is empty" {
+    jq -nc --arg o "$(printf %s /data/a.pdf | base64 -w0)" \
+           --arg n "$(printf %s /data/b.pdf | base64 -w0)" \
+      '{kind:"file", old_b64:$o, new_b64:$n, rules:[], mode:"clean"}' > "$MANIFEST"
+
+    run ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --dry-run
+    assert_success
+    assert_line --regexp '^none +1 +0 +0 +1'
+    refute_line --regexp '^clean +1'
+}
+
+@test "aborts when the reader drops a malformed entry" {
+    bats_require_minimum_version 1.5.0
+
+    {
+      entry file /data/a.pdf /data/b.pdf
+      jq -nc --arg o "$(printf %s /data/c.pdf | base64 -w0)" \
+             --arg n "$(printf %s /data/d.pdf | base64 -w0)" \
+        '{kind:"file", old_b64:$o, new_b64:$n, rules:"nfc", mode:"clean"}'
+    } > "$MANIFEST"
+
+    run ! ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --dry-run
+    assert_output --partial "malformed entry"
+}
+
+@test "a dry run counts a document whose path ends in a newline" {
+    seed nl "$(jq -nc '{type:"Document", path:"/data/trailing\n", dirname:"/data"}')"
+
+    # $(...) strips trailing newlines, so the same printf x guard the production
+    # decode() uses is needed here or this test silently checks nothing
+    local nl_path
+    nl_path=$(printf '/data/trailing\n'; printf x)
+    nl_path=${nl_path%x}
+
+    entry file "$nl_path" /data/trailing control > "$MANIFEST"
+
+    run ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --dry-run
+    assert_success
+    assert_line --regexp '^control +1 +1 +1 +0'
+}
+
+@test "reports a failed directory move when stdout is not a terminal" {
+    bats_require_minimum_version 1.5.0
+
+    seed inside '{"type":"Document","path":"/data/old/x.pdf","dirname":"/data/old"}'
+    entry dir /data/old /data/new > "$MANIFEST"
+    curl -sXPUT "$ELASTICSEARCH_URL/$TEST_INDEX/_settings" -H "$H_CONTENT_TYPE" \
+      -d '{"index":{"blocks.write":true}}' > /dev/null
+
+    run ! ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    assert_output --partial "Move documents failed"
+}
+
+@test "verify accepts a file rename composed with a directory rename" {
+    seed both '{"type":"Document","path":"/data/old/a.pdf","dirname":"/data/old"}'
+    {
+      entry file /data/old/a.pdf /data/old/b.pdf
+      entry dir  /data/old       /data/new
+    } > "$MANIFEST"
+
+    ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    run ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --verify
+    assert_success
+}
+
+@test "verify accepts nested directory renames" {
+    seed deep '{"type":"Document","path":"/data/a/b/x.pdf","dirname":"/data/a/b"}'
+    {
+      entry dir /data/a   /data/z
+      entry dir /data/a/b /data/a/c
+    } > "$MANIFEST"
+
+    ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    run ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --verify
+    assert_success
+}
+
+@test "verify accepts a directory entry that matches no document" {
+    entry dir /data/empty /data/empty-clean > "$MANIFEST"
+
+    ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST"
+    run ./elasticsearch/document/rename.sh $TEST_INDEX "$MANIFEST" --verify
+    assert_success
 }

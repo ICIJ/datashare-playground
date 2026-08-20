@@ -7,7 +7,7 @@ setup() {
   fi
   export ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-http://elasticsearch:9200}
 
-  TEST_INDEX="bats.document.move"
+  TEST_INDEX="bats.document.move.$$"
   H_CONTENT_TYPE="Content-Type: application/json"
 
   curl -sXDELETE "$ELASTICSEARCH_URL/$TEST_INDEX" > /dev/null 2>&1 || true
