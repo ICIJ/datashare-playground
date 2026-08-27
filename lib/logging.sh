@@ -8,6 +8,7 @@ _TASK_LIST=()
 # Spinner variables
 _SPINNER_PID=""
 _SPINNER_MSG=""
+_SPINNER_MSG_FILE=""
 
 # Start a spinner with a message
 # Usage: spinner_start "message"
@@ -16,6 +17,10 @@ spinner_start() {
 
     # Only show spinner if running interactively
     [ -t 1 ] || return 0
+
+    # The spinner runs in a subshell, so live message updates go through a file
+    _SPINNER_MSG_FILE=$(mktemp)
+    printf '%s' "$_SPINNER_MSG" > "$_SPINNER_MSG_FILE"
 
     # Print initial spinner state
     echo -ne "${Cyan}⠋${Color_Off} ${_SPINNER_MSG}"
@@ -27,13 +32,23 @@ spinner_start() {
         local len=${#chars}
         while true; do
             local char="${chars:$i:1}"
-            echo -ne "\r${Cyan}${char}${Color_Off} ${_SPINNER_MSG}"
+            local msg
+            msg=$(<"$_SPINNER_MSG_FILE")
+            echo -ne "\r\033[K${Cyan}${char}${Color_Off} ${msg}"
             i=$(( (i + 1) % len ))
             sleep 0.1
         done
     ) &
     _SPINNER_PID=$!
     disown $_SPINNER_PID
+}
+
+# Update the message of a running spinner
+# Usage: spinner_update "message"
+spinner_update() {
+    _SPINNER_MSG="$1"
+    [[ -n "$_SPINNER_MSG_FILE" ]] && printf '%s' "$1" > "$_SPINNER_MSG_FILE"
+    return 0
 }
 
 # Stop spinner and show success
@@ -48,6 +63,7 @@ spinner_stop() {
         # Clear spinner line
         echo -ne "\r\033[K"
     fi
+    [[ -n "$_SPINNER_MSG_FILE" ]] && rm -f "$_SPINNER_MSG_FILE" && _SPINNER_MSG_FILE=""
 
     echo -e "${Green}✓${Color_Off} ${msg}"
 }
@@ -64,6 +80,7 @@ spinner_error() {
         # Clear spinner line
         echo -ne "\r\033[K"
     fi
+    [[ -n "$_SPINNER_MSG_FILE" ]] && rm -f "$_SPINNER_MSG_FILE" && _SPINNER_MSG_FILE=""
 
     echo -e "${Red}✗${Color_Off} ${msg}"
 }
@@ -111,6 +128,17 @@ log_error() {
     echo -e "${Red}✗${Color_Off} $1"
 }
 
+# Compute the completion percentage of an Elasticsearch task
+# Usage: es_task_progress <task_status_json>
+# Outputs an integer percent, or nothing when the total is unknown
+es_task_progress() {
+    echo "$1" | jq -r '
+        (.task.status // {}) as $s
+        | (($s.updated // 0) + ($s.created // 0) + ($s.deleted // 0) + ($s.noops // 0) + ($s.version_conflicts // 0)) as $done
+        | if ($s.total // 0) > 0 then ($done * 100 / $s.total | floor) else empty end
+    '
+}
+
 # Monitor an async Elasticsearch task
 # Usage: monitor_es_task <task_id> <message>
 # Returns the final task response
@@ -146,6 +174,14 @@ monitor_es_task() {
                 spinner_stop "$message"
             fi
             return 0
+        fi
+
+        if [ -t 1 ]; then
+            local percent
+            percent=$(es_task_progress "$task_status" 2>/dev/null) || percent=""
+            if [[ -n "$percent" ]]; then
+                spinner_update "$message $(progress_bar "$percent")"
+            fi
         fi
         sleep 2
     done

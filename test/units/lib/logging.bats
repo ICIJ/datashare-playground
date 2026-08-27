@@ -59,3 +59,27 @@ setup () {
   [[ "$output" == *"!"* ]]
   [[ "$output" == *"task warning"* ]]
 }
+
+@test "es_task_progress computes percent from task status" {
+  run es_task_progress '{"task":{"status":{"total":200,"updated":40,"created":10,"deleted":0,"noops":0,"version_conflicts":0}}}'
+  assert_success
+  assert_output "25"
+}
+
+@test "es_task_progress counts version conflicts as processed" {
+  run es_task_progress '{"task":{"status":{"total":100,"updated":50,"version_conflicts":25}}}'
+  assert_success
+  assert_output "75"
+}
+
+@test "es_task_progress outputs nothing when total is zero" {
+  run es_task_progress '{"task":{"status":{"total":0}}}'
+  assert_success
+  assert_output ""
+}
+
+@test "es_task_progress outputs nothing when status is missing" {
+  run es_task_progress '{"completed":false}'
+  assert_success
+  assert_output ""
+}
