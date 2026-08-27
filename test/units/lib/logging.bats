@@ -72,6 +72,20 @@ setup () {
   assert_output "75"
 }
 
+@test "es_task_progress aggregates running slices from child tasks" {
+  parent='{"task":{"status":{"total":6000,"updated":6000,"slices":[{"total":2000},{"total":4000},null,null]}}}'
+  children='{"nodes":{"n1":{"tasks":{"t1":{"status":{"total":90000,"updated":8000}}}}}}'
+  run es_task_progress "$parent" "$children"
+  assert_success
+  assert_output "14"
+}
+
+@test "es_task_progress ignores an empty children listing" {
+  run es_task_progress '{"task":{"status":{"total":100,"updated":50}}}' '{"nodes":{}}'
+  assert_success
+  assert_output "50"
+}
+
 @test "es_task_progress outputs nothing when total is zero" {
   run es_task_progress '{"task":{"status":{"total":0}}}'
   assert_success

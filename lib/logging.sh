@@ -129,13 +129,18 @@ log_error() {
 }
 
 # Compute the completion percentage of an Elasticsearch task
-# Usage: es_task_progress <task_status_json>
-# Outputs an integer percent, or nothing when the total is unknown
+# Usage: es_task_progress <task_status_json> [<child_tasks_json>]
+# Outputs an integer percent, or nothing when the total is unknown.
+# A sliced parent task only aggregates completed slices, so the running
+# slices' counters must be added from a _tasks?parent_task_id listing.
 es_task_progress() {
-    echo "$1" | jq -r '
-        (.task.status // {}) as $s
-        | (($s.updated // 0) + ($s.created // 0) + ($s.deleted // 0) + ($s.noops // 0) + ($s.version_conflicts // 0)) as $done
-        | if ($s.total // 0) > 0 then ($done * 100 / $s.total | floor) else empty end
+    jq -rn --argjson parent "$1" --argjson children "${2:-null}" '
+        def done: (.updated // 0) + (.created // 0) + (.deleted // 0) + (.noops // 0) + (.version_conflicts // 0);
+        ($parent.task.status // {}) as $p
+        | [$children.nodes[]?.tasks[]?.status // empty] as $slices
+        | (($p.total // 0) + ([$slices[].total // 0] | add // 0)) as $total
+        | (($p | done) + ([$slices[] | done] | add // 0)) as $done
+        | if $total > 0 then ($done * 100 / $total | floor) else empty end
     '
 }
 
@@ -177,8 +182,9 @@ monitor_es_task() {
         fi
 
         if [ -t 1 ]; then
-            local percent
-            percent=$(es_task_progress "$task_status" 2>/dev/null) || percent=""
+            local percent children
+            children=$(curl -s "$ELASTICSEARCH_URL/_tasks?parent_task_id=$task_id&detailed=true")
+            percent=$(es_task_progress "$task_status" "$children" 2>/dev/null) || percent=""
             if [[ -n "$percent" ]]; then
                 spinner_update "$message (${percent}%)"
             fi
