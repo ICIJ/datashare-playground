@@ -180,7 +180,7 @@ monitor_es_task() {
             local percent
             percent=$(es_task_progress "$task_status" 2>/dev/null) || percent=""
             if [[ -n "$percent" ]]; then
-                spinner_update "$message $(progress_bar "$percent")"
+                spinner_update "$message (${percent}%)"
             fi
         fi
         sleep 2
