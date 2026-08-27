@@ -36,6 +36,13 @@ teardown() {
     run ! ./elasticsearch/document/delete.sh
 }
 
+@test "prints the number of matching documents before deleting" {
+    run ./elasticsearch/document/delete.sh $TEST_INDEX
+    assert_success
+    plain=$(echo "$output" | sed 's/\x1b\[[0-9;]*m//g')
+    [[ "$plain" == *"Matches: 3"* ]]
+}
+
 @test "can run delete with an index, a path and a query string" {
     command ./elasticsearch/document/delete.sh $TEST_INDEX / "kimchi"
     curl -sXPOST $ELASTICSEARCH_URL/$TEST_INDEX/_refresh

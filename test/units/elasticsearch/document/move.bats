@@ -49,6 +49,13 @@ field() {
     run ! ./elasticsearch/document/move.sh $TEST_INDEX /data/foo
 }
 
+@test "prints the number of matching documents before moving" {
+    run ./elasticsearch/document/move.sh $TEST_INDEX /data/foo /data/baz
+    assert_success
+    plain=$(echo "$output" | sed 's/\x1b\[[0-9;]*m//g')
+    [[ "$plain" == *"Matches: 3"* ]]
+}
+
 @test "rewrites only the leading occurrence of a repeated prefix" {
     ./elasticsearch/document/move.sh $TEST_INDEX /data/foo /data/baz
     curl -sXPOST "$ELASTICSEARCH_URL/$TEST_INDEX/_refresh" > /dev/null

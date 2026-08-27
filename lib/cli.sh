@@ -7,6 +7,12 @@ source $_cli_lib_dir/prompt.sh
 source $_cli_lib_dir/table.sh
 source $_cli_lib_dir/progress.sh
 
+# Count documents matching a count API body ({query: ...})
+# Usage: count_es_documents <index> <body>
+count_es_documents() {
+  curl -sXPOST "$ELASTICSEARCH_URL/$1/_count" -H 'Content-Type: application/json' -d "$2" | jq -r '.count'
+}
+
 check_usage() {
   # Get the number of arguments passed to the main program
   local main_args=${#BASH_ARGV[@]}

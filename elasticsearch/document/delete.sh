@@ -40,6 +40,8 @@ body='{
   }
 }'
 
+log_kv "Matches" "$(count_es_documents "$index" "$(echo "$body" | jq -c '{query}')")"
+
 # Start async delete
 result=$(curl -sXPOST "$ELASTICSEARCH_URL/$index/_delete_by_query?wait_for_completion=false" -H 'Content-Type: application/json' -d "$body")
 task_id=$(echo "$result" | jq -r '.task')

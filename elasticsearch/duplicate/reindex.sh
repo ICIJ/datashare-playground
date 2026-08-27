@@ -39,6 +39,8 @@ body='{
   }
 }'
 
+log_kv "Matches" "$(count_es_documents "$source" "$(echo "$body" | jq -c '{query: .source.query}')")"
+
 # Start async reindex
 result=$(curl -sXPOST "$ELASTICSEARCH_URL/_reindex?wait_for_completion=false" -H 'Content-Type: application/json' -d "$body")
 task_id=$(echo "$result" | jq -r '.task')
