@@ -370,7 +370,7 @@ run_update() {
   local body=$1 label=$2
   local result task_id response failures conflicts updated
 
-  result=$(curl -sXPOST "$ELASTICSEARCH_URL/$index/_update_by_query?wait_for_completion=false&refresh=true" \
+  result=$(curl -sXPOST "$ELASTICSEARCH_URL/$index/_update_by_query?wait_for_completion=false&refresh=true&slices=auto&scroll_size=10000" \
     -H 'Content-Type: application/json' -d "$body")
   task_id=$(printf %s "$result" | jq -r '.task')
 

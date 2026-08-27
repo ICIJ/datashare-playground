@@ -39,7 +39,7 @@ body=$(jq -nc --arg old "$path" --arg new "$new_path" --arg src "$script" '{
 log_kv "Matches" "$(count_es_documents "$index" "$(echo "$body" | jq -c '{query}')")"
 
 # Start async update
-result=$(curl -sXPOST "$ELASTICSEARCH_URL/$index/_update_by_query?wait_for_completion=false&refresh=true" -H 'Content-Type: application/json' -d "$body")
+result=$(curl -sXPOST "$ELASTICSEARCH_URL/$index/_update_by_query?wait_for_completion=false&refresh=true&slices=auto&scroll_size=10000" -H 'Content-Type: application/json' -d "$body")
 task_id=$(echo "$result" | jq -r '.task')
 
 if [[ "$task_id" == "null" || -z "$task_id" ]]; then
