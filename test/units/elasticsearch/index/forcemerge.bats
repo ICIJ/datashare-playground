@@ -41,6 +41,7 @@ teardown() {
 @test "force merges an existing index successfully" {
     run ./elasticsearch/index/forcemerge.sh $TEST_INDEX
     assert_success
+    assert_output --partial "force merged"
 }
 
 @test "fails on a non-existent index" {

@@ -13,13 +13,12 @@ esindex=$ELASTICSEARCH_URL/$index
 
 log_title "Force merge (expunge deletes): $index"
 
-# Start async force merge
-result=$(curl -sXPOST "$esindex/_forcemerge?only_expunge_deletes=true&wait_for_completion=false")
-task_id=$(echo "$result" | jq -r '.task // empty' 2>/dev/null || true)
-
-if [[ -z "$task_id" ]]; then
-    log_error "Failed to start force merge: $(echo "$result" | jq -r '.error.reason // .' 2>/dev/null || echo "$result")"
+# Synchronous on purpose: _forcemerge has no wait_for_completion on ES 7.x
+# (Datashare's target), so we block until the merge returns its _shards report
+# and treat a missing successful count (e.g. a 404 error body) as a failure.
+spinner_start "Force merge (expunge deletes)"
+if ! curl -sXPOST "$esindex/_forcemerge?only_expunge_deletes=true" | jq -e '._shards.successful' > /dev/null; then
+    spinner_error "Force merge (expunge deletes)"
     exit 1
 fi
-
-monitor_es_task "$task_id" "Force merge (expunge deletes): $index"
+spinner_stop "Index '$index' force merged"
