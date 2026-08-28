@@ -163,14 +163,18 @@ monitor_es_task() {
         completed=$(echo "$task_status" | jq -r '.completed')
 
         if [[ "$completed" == "true" ]]; then
-            local failures
+            local error failures
+            error=$(echo "$task_status" | jq -r '.error.reason // empty')
             failures=$(echo "$task_status" | jq -r '.response.failures | length')
 
-            if [[ "$failures" != "0" && "$failures" != "null" ]]; then
+            if [[ -n "$error" || ( "$failures" != "0" && "$failures" != "null" ) ]]; then
                 if [ -t 1 ]; then
                     spinner_error "$message"
                 else
                     log_error "$message failed"
+                fi
+                if [[ -n "$error" ]]; then
+                    log_error "$error"
                 fi
                 return 1
             fi
