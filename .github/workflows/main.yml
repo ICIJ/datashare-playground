@@ -12,9 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     services:
       elasticsearch:
-        image: docker.elastic.co/elasticsearch/elasticsearch:8.19.8
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.19.16
         options: >-
-          --health-cmd "curl http://localhost:9200/_cluster/health"
+          --health-cmd "curl -s -u elastic:changeme http://localhost:9200/_cluster/health"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
@@ -24,6 +24,7 @@ jobs:
           ES_JAVA_OPTS: -Xms256m -Xmx256m
           discovery.type: single-node
           cluster.name: datashare
+          ELASTIC_PASSWORD: changeme
           http.compression: false
           http.cors.enabled: true
           # Single-quote the wildcard: ES 8.x writes env vars into a YAML
@@ -32,9 +33,10 @@ jobs:
           http.cors.allow-methods: OPTIONS, HEAD, GET, POST, PUT, DELETE
           indices.query.bool.max_clause_count: 20000
           indices.id_field_data.enabled: true
-          # ES 8.x enables security and TLS by default; the tests talk to a
-          # plain http://localhost:9200, so both must be turned off.
-          xpack.security.enabled: false
+          # Security stays on, remote_reindex.sh parses the credentials out of the url
+          # and the tests only exercise that against a cluster that asks for them.
+          # TLS is off, the tests talk to a plain http://localhost:9200.
+          xpack.security.enabled: "true"
           xpack.security.http.ssl.enabled: false
           # Keep CI runners (often >85% full) from tripping the flood-stage
           # read-only block, which would fail writes mid-suite.
