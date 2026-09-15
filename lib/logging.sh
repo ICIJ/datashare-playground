@@ -144,6 +144,29 @@ es_task_progress() {
     '
 }
 
+# Compute a docs/s rate and an ETA for an Elasticsearch task
+# Usage: es_task_rate <task_status_json> [<child_tasks_json>]
+# Outputs e.g. "3924/s, eta 8m32s", or nothing when there is not enough to go on.
+# A percentage doesn't tell you how long is left, and that's what you want to know when
+# you're sitting on a maintenance window.
+es_task_rate() {
+    jq -rn --argjson parent "$1" --argjson children "${2:-null}" '
+        def done: (.updated // 0) + (.created // 0) + (.deleted // 0) + (.noops // 0) + (.version_conflicts // 0);
+        def hms: if . >= 3600 then "\(. / 3600 | floor)h\((. % 3600) / 60 | floor)m"
+                 elif . >= 60 then "\(. / 60 | floor)m\(. % 60 | floor)s"
+                 else "\(. | floor)s" end;
+        ($parent.task.status // {}) as $p
+        | [$children.nodes[]?.tasks[]?.status // empty] as $slices
+        | (($p.total // 0) + ([$slices[].total // 0] | add // 0)) as $total
+        | (($p | done) + ([$slices[] | done] | add // 0)) as $done
+        | (($parent.task.running_time_in_nanos // 0) / 1000000000) as $secs
+        | if $secs > 0 and $done > 0 and $total > $done
+          then ($done / $secs) as $rate
+             | "\($rate | floor)/s, eta \((($total - $done) / $rate) | hms)"
+          else empty end
+    '
+}
+
 # Monitor an async Elasticsearch task
 # Usage: monitor_es_task <task_id> <message>
 # Returns the final task response
@@ -185,12 +208,23 @@ monitor_es_task() {
             return 0
         fi
 
+        local percent rate children progress=""
+        children=$(curl -s "$ELASTICSEARCH_URL/_tasks?parent_task_id=$task_id&detailed=true")
+        percent=$(es_task_progress "$task_status" "$children" 2>/dev/null) || percent=""
+        rate=$(es_task_rate "$task_status" "$children" 2>/dev/null) || rate=""
+        if [[ -n "$percent" ]]; then
+            progress="${percent}%"
+            [[ -n "$rate" ]] && progress="${progress}, ${rate}"
+        fi
+
         if [ -t 1 ]; then
-            local percent children
-            children=$(curl -s "$ELASTICSEARCH_URL/_tasks?parent_task_id=$task_id&detailed=true")
-            percent=$(es_task_progress "$task_status" "$children" 2>/dev/null) || percent=""
-            if [[ -n "$percent" ]]; then
-                spinner_update "$message (${percent}%)"
+            [[ -n "$progress" ]] && spinner_update "$message ($progress)"
+        elif [[ -n "$progress" ]]; then
+            # No terminal: a spinner writes nothing, so a long run would look hung in a
+            # log or a CI job. One line a minute instead of one every poll.
+            monitor_ticks=$(( ${monitor_ticks:-0} + 1 ))
+            if (( monitor_ticks % 30 == 1 )); then
+                log_info "$message ($progress)"
             fi
         fi
         sleep 2
