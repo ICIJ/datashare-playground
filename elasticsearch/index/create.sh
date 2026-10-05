@@ -21,8 +21,9 @@ log_title "Create Index: $1"
 
 # A stale mappings file will create an index with missing or wrongly typed fields
 # that will only show up later, so check the copy you are using against the latest
-# datashare release before creating anything. Github being unreachable is not
-# fatal, but a copy that is known to be stale is rejected unless the caller allows it.
+# datashare release before creating anything. A stale copy only warns by default, a hard
+# stop would break every run (and CI) the day datashare ships a new field. Set
+# STRICT_MAPPINGS=1 to make it fatal.
 check_mappings_version() {
   local using=$1 index_name=$2 latest
   latest=$(curl -s --max-time 10 https://api.github.com/repos/ICIJ/datashare/releases/latest \
@@ -66,12 +67,14 @@ check_mappings_version() {
   latest_fields=$(jq -r '.properties | keys | length' "$remote")
   rm -f "$remote"
 
-  log_error "The vendored mappings differ from datashare $latest ($vendored_fields fields vs $latest_fields)"
+  log_warn "The vendored mappings differ from datashare $latest ($vendored_fields fields vs $latest_fields)"
   log_warn "Fields missing from the vendored copy are created by dynamic mapping instead,"
   log_warn "which can change their type (a keyword field comes back as text)."
   log_warn "Pass the deployed version instead:  $0 $index_name <version>"
-  log_warn "Or set ALLOW_STALE_MAPPINGS=1 to use the vendored copy anyway."
-  [[ "${ALLOW_STALE_MAPPINGS:-}" == "1" ]] || exit 1
+  if [[ "${STRICT_MAPPINGS:-}" == "1" ]]; then
+    log_error "STRICT_MAPPINGS=1: refusing to create '$index_name' from a stale copy"
+    exit 1
+  fi
 }
 
 if [[ $# -eq 2 ]]; then

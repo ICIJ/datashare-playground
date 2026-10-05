@@ -33,12 +33,17 @@ esindex=$ELASTICSEARCH_URL/$index
 # Everything that should come out of a reshard intact. The shard count and node placement
 # are not here on purpose, those are what a reshard changes.
 capture() {
-  local settings mapping
+  local settings mapping docs
   settings=$(curl -sXGET "$esindex/_settings?flat_settings=true")
   mapping=$(curl -sXGET "$esindex/_mapping")
+  docs=$(curl -sXGET "$esindex/_count" | jq -r '.count // "ERROR"')
+  if ! [[ "$docs" =~ ^[0-9]+$ ]]; then
+    log_error "Could not count the documents in '$index'" >&2
+    exit 1
+  fi
 
   echo "index            $index"
-  echo "docs             $(curl -sXGET "$esindex/_count" | jq -r '.count // "ERROR"')"
+  echo "docs             $docs"
   echo "replicas         $(echo "$settings" | jq -r '.[].settings["index.number_of_replicas"] // "?"')"
   # Normalise this one. The setting is missing on one index and set to false on the
   # other, they mean the same thing but the diff shows them as different.
@@ -52,11 +57,24 @@ capture() {
   # the compare ignores them.
   echo "# mapping_fields $(echo "$mapping" | jq -r '[.[].mappings.properties | keys[]] | length') (informational, expected to change)"
 
-  # 10 ids sorted by id, so the sample will look the same no matter what the shard layout
-  # is. These are the documents a later --compare looks up one by one.
-  local ids
-  ids=$(curl -sXGET "$esindex/_search?size=10" -H 'Content-Type: application/json' \
-        -d '{"sort":[{"_id":"asc"}],"_source":false}' | jq -r '.hits.hits[]._id')
+  # 10 ids sorted on path, so the sample does not depend on the shard layout. Not on _id:
+  # sorting on it needs indices.id_field_data.enabled, which is off by default on ES 8.
+  # path is a keyword with doc values; unmapped_type keeps a non datashare index working.
+  # These are the documents a later --compare looks up one by one.
+  local response ids
+  response=$(curl -sXGET "$esindex/_search?size=10" -H 'Content-Type: application/json' \
+             -d '{"sort":[{"path":{"order":"asc","unmapped_type":"keyword"}}],"_source":false}')
+  if echo "$response" | jq -e '.error' > /dev/null; then
+    log_error "Could not sample documents: $(echo "$response" | jq -r '.error.reason // .error')" >&2
+    exit 1
+  fi
+  ids=$(echo "$response" | jq -r '.hits.hits[]._id')
+  # An empty sample makes --compare pass after checking nothing, so it is an error
+  # unless the index really is empty.
+  if [[ -z "$ids" && "$docs" != "0" ]]; then
+    log_error "Sample search returned no documents but the index has $docs" >&2
+    exit 1
+  fi
   local id
   for id in $ids; do
     echo "sample_doc       $id"
@@ -100,6 +118,15 @@ if [[ "$mode" == "compare" ]]; then
     log_warn "State differs from the capture (above: < before, > now)"
   fi
 
+  # The other lines only warn, but a changed document count means documents were lost
+  # or added, and the 10 samples alone would not catch it.
+  docs_before=$(awk '$1 == "docs" { print $2 }' "$state_file")
+  docs_now=$(awk '$1 == "docs" { print $2 }' "$now")
+  docs_changed=false
+  if [[ "$docs_before" != "$docs_now" ]]; then
+    docs_changed=true
+  fi
+
   spinner_start "Check sampled documents"
   missing=$(check_samples "$state_file")
   if [[ "$missing" == "0" ]]; then
@@ -110,9 +137,16 @@ if [[ "$mode" == "compare" ]]; then
     log_error "$missing sampled document(s) missing"
     exit 1
   fi
+
+  if [[ "$docs_changed" == true ]]; then
+    log_error "Document count changed: $docs_before before, $docs_now now"
+    exit 1
+  fi
 else
   if [[ -n "$state_file" ]]; then
-    capture | tee "$state_file"
+    # Not `capture | tee`: in a pipeline a failed capture would not stop the script.
+    capture > "$state_file"
+    cat "$state_file"
     echo ""
     log_kv "Capture written to" "$state_file"
   else

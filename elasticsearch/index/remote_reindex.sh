@@ -17,16 +17,20 @@ source $script_dir/../../lib/cli.sh
 remote_url=
 destination_url=
 shards=
-while [[ "$1" == --* || "$1" == -s ]]; do
+# Remote reindex buffers each page on heap with a 100MB cap, and datashare documents
+# carry a lot of extracted text, so 1000 per page (the default) can go over it.
+batch_size=100
+while [[ "$1" == --* || "$1" == -s || "$1" == -b ]]; do
   case "$1" in
     --remote-es-url) remote_url=${2%/}; shift 2 ;;
     --destination-es-url) destination_url=${2%/}; shift 2 ;;
     --shards|-s) shards=$2; shift 2 ;;
+    --batch-size|-b) batch_size=$2; shift 2 ;;
     *) log_error "Unknown option: $1"; exit 1 ;;
   esac
 done
 
-check_usage 1 '--remote-es-url <url> [--destination-es-url <url>] [--shards|-s <n>] <source_index> [<dest_index>]'
+check_usage 1 '--remote-es-url <url> [--destination-es-url <url>] [--shards|-s <n>] [--batch-size|-b <n>] <source_index> [<dest_index>]'
 check_env
 check_bins
 
@@ -60,12 +64,14 @@ else
 fi
 
 log_kv "Remote source" "$remote_scheme://$remote_host/$source_index"
-log_kv "Destination" "$destination_url/$dest_index"
+log_kv "Destination" "$(echo "$destination_url" | sed -E 's|//[^@]+@|//|')/$dest_index"
 
 # 1. Fetch settings, mappings and aliases from the remote source index
 spinner_start "Fetch settings/mappings from remote"
 index_config=$(curl -s "$remote_url/$source_index")
-settings=$(echo "$index_config" | jq --raw-output '.[].settings.index | del(.uuid, .version, .provided_name, .creation_date, .number_of_replicas)')
+# Drop blocks too: a source frozen with readonly.sh would give a write-blocked destination.
+settings=$(echo "$index_config" | jq --raw-output '.[].settings.index | del(.uuid, .version, .provided_name, .creation_date, .number_of_replicas, .blocks)')
+original_replicas=$(echo "$index_config" | jq -r '.[].settings.index.number_of_replicas // "1"')
 mappings=$(echo "$index_config" | jq '.[].mappings')
 aliases=$(echo "$index_config" | jq '.[].aliases')
 if [[ -z "$settings" || "$settings" == "null" ]]; then
@@ -107,7 +113,8 @@ else
   remote_config=$(jq -n --arg host "$remote_scheme://$remote_host" '{ host: $host }')
 fi
 reindex_body=$(jq -n --argjson remote "$remote_config" --arg src "$source_index" --arg dst "$dest_index" \
-  '{ source: { remote: $remote, index: $src }, dest: { index: $dst } }')
+  --argjson size "$batch_size" \
+  '{ source: { remote: $remote, index: $src, size: $size }, dest: { index: $dst } }')
 
 spinner_start "Start remote reindex"
 task_id=$(curl -sXPOST "$destination_url/_reindex?wait_for_completion=false" -H 'Content-Type: application/json' -d "$reindex_body" | jq -r '.task')
@@ -120,23 +127,7 @@ fi
 spinner_stop "Start remote reindex"
 
 # 5. Monitor the task on the destination cluster until it completes
-spinner_start "Reindex data"
-while true; do
-  task_status=$(curl -s "$destination_url/_tasks/$task_id")
-  completed=$(echo "$task_status" | jq -r '.completed')
-  if [[ "$completed" == "true" ]]; then
-    break
-  fi
-  sleep 2
-done
-failures=$(curl -s "$destination_url/_tasks/$task_id" | jq '.response.failures | length')
-if [[ "$failures" != "0" && "$failures" != "null" ]]; then
-  spinner_error "Reindex data"
-  echo ""
-  log_error "Remote reindex completed with $failures failures"
-  exit 1
-fi
-spinner_stop "Reindex data"
+ELASTICSEARCH_URL=$destination_url monitor_es_task "$task_id" "Reindex data" || exit 1
 
 # 6. Verify document counts match
 spinner_start "Verify document count"
@@ -154,7 +145,7 @@ spinner_stop "Verify document count"
 # 7. Restore replicas on the destination index (curl directly, as the destination
 #    cluster may differ from ELASTICSEARCH_URL used by number_of_replicas.sh)
 spinner_start "Restore replicas"
-if ! curl -sXPUT "$destination_url/$dest_index/_settings" -H 'Content-Type: application/json' -d'{ "index": { "number_of_replicas": 1 } }' | jq -e '.acknowledged' > /dev/null; then
+if ! curl -sXPUT "$destination_url/$dest_index/_settings" -H 'Content-Type: application/json' -d"{ \"index\": { \"number_of_replicas\": $original_replicas } }" | jq -e '.acknowledged' > /dev/null; then
   spinner_error "Restore replicas"
   exit 1
 fi

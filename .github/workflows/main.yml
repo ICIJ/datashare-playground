@@ -32,7 +32,6 @@ jobs:
           http.cors.allow-origin: "'*'"
           http.cors.allow-methods: OPTIONS, HEAD, GET, POST, PUT, DELETE
           indices.query.bool.max_clause_count: 20000
-          indices.id_field_data.enabled: true
           # Security stays on, remote_reindex.sh parses the credentials out of the url
           # and the tests only exercise that against a cluster that asks for them.
           # TLS is off, the tests talk to a plain http://localhost:9200.

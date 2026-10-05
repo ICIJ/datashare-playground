@@ -3,11 +3,13 @@
 # Bash reads a script incrementally as it runs, so editing this file mid-run shifts the
 # byte offsets and the running process reads garbage. Copying the script to a temporary
 # file and re-executing from there saves a long reindex from edits.
+# Pass -e again: `bash <file>` ignores the shebang, and without errexit a failed step
+# would not stop the run before it offers to delete the backup.
 if [[ -z "${SAFE_REINDEX_SELF_COPY:-}" ]]; then
     self_copy=$(mktemp "${TMPDIR:-/tmp}/safe_reindex.XXXXXX.sh")
     trap 'rm -f "$self_copy"' EXIT
     cp "$0" "$self_copy"
-    SAFE_REINDEX_SELF_COPY="$0" bash "$self_copy" "$@"
+    SAFE_REINDEX_SELF_COPY="$0" bash -e "$self_copy" "$@"
     exit $?
 fi
 
@@ -81,8 +83,9 @@ capture_before_state() {
 
 # The mapping is expected to differ: create.sh rebuilds the index from datashare's own
 # settings/mappings, which is the point. What must NOT differ is the document count, the
-# aliases, the replica count, and every sampled document still resolving. verify.sh warns
-# on a diff and exits non-zero only when a sampled document has gone missing.
+# aliases, the replica count, and every sampled document still resolving. verify.sh exits
+# non-zero when the document count changed or a sampled document has gone missing, and
+# only warns on the other lines.
 compare_after_state() {
     local index=$1
 
@@ -116,7 +119,6 @@ check_index_exists() {
 
 create_new_index() {
     local target_index=$1
-    spinner_start "Create temporary index"
 
     # Build create.sh arguments: optional shard override, index name, optional version
     local create_args=()
@@ -128,14 +130,13 @@ create_new_index() {
         create_args+=("$version")
     fi
 
-    # Use create.sh to create the index with settings/mappings
-    if ! "$script_dir/create.sh" "${create_args[@]}" > /dev/null; then
-        spinner_error "Create temporary index"
+    # Keep create.sh output visible: it logs why it failed (stale mappings, download
+    # error) on stdout, and it draws its own spinners.
+    if ! "$script_dir/create.sh" "${create_args[@]}"; then
         echo ""
         log_error "Failed to create new index '$target_index'"
         exit 1
     fi
-    spinner_stop "Create temporary index"
 }
 
 # monitor_es_task says the task failed but not why, you just get a red cross. Print the
@@ -256,7 +257,7 @@ BANDS=(
 )
 
 compute_budget() {
-    local limit
+    local index=$1 limit
     # indexing_pressure stats only show counters, not the limit, so do it like
     # Elasticsearch does, 10% of the heap. Checked against a real rejection, it matches
     # the max_coordinating_and_primary_bytes the error quoted.
@@ -269,9 +270,14 @@ compute_budget() {
         limit=$(( 1024 * 1024 * 1024 ))
     fi
     PRESSURE_LIMIT=$limit
-    # A quarter of the limit, so one in-flight batch cannot monopolise it and there is
+    # reindex.sh runs with slices=auto, one slice per source primary, and every slice has
+    # a batch in flight at the same time. So split the budget between them.
+    SOURCE_SHARDS=$(curl -s "$ELASTICSEARCH_URL/$index/_settings?flat_settings=true" \
+                    | jq -r '.[].settings["index.number_of_shards"] // empty')
+    [[ "$SOURCE_SHARDS" =~ ^[1-9][0-9]*$ ]] || SOURCE_SHARDS=1
+    # A quarter of the limit, so the batches in flight cannot monopolise it and there is
     # room for the estimate to be wrong.
-    BATCH_BUDGET=$(( limit / 4 ))
+    BATCH_BUDGET=$(( limit / 4 / SOURCE_SHARDS ))
 }
 
 # Documents bigger than the whole limit can never be copied, whatever the batch size,
@@ -511,9 +517,9 @@ main() {
     # Execute steps
     check_index_exists "$index_name"
 
-    compute_budget
+    compute_budget "$index_name"
     log_kv "Indexing pressure limit" "$(human_bytes "$PRESSURE_LIMIT")"
-    log_kv "Budget per bulk request" "$(human_bytes "$BATCH_BUDGET")"
+    log_kv "Budget per bulk request" "$(human_bytes "$BATCH_BUDGET") ($SOURCE_SHARDS slice(s) in parallel)"
     check_oversized_documents "$index_name"
 
     capture_before_state "$index_name"
