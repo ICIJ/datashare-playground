@@ -3,7 +3,14 @@
 script_dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source $script_dir/../../lib/cli.sh
 
-check_usage 2 '<source> <target> [<query_string>]'
+# Optional --batch-size|-b flag: how many documents per bulk request
+batch_size=1000
+while [[ "$1" == "--batch-size" || "$1" == "-b" ]]; do
+  batch_size=$2
+  shift 2
+done
+
+check_usage 2 '[--batch-size|-b <n>] <source> <target> [<query_string>]'
 check_bins
 check_env
 check_elasticsearch_url
@@ -17,6 +24,7 @@ log_title "Reindex: $source → $target"
 body='{
   "source": {
     "index": "'"${source}"'",
+    "size": '"${batch_size}"',
     "query": {
       "query_string": {
         "query": "'"${query_string}"'"
@@ -45,4 +53,4 @@ body='{
 }'
 
 # This outputs JSON with task id for the caller to use
-curl -sXPOST "$ELASTICSEARCH_URL/_reindex?wait_for_completion=false" -H 'Content-Type: application/json' -d "$body"
+curl -sXPOST "$ELASTICSEARCH_URL/_reindex?wait_for_completion=false&slices=auto" -H 'Content-Type: application/json' -d "$body"

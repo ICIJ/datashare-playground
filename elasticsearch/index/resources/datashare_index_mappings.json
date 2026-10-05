@@ -84,12 +84,20 @@
     "contentType": {
       "type": "keyword"
     },
+    "contentTypeCategory": {
+      "type": "keyword"
+    },
     "language": {
       "type": "keyword"
     },
     "status": {
       "type": "keyword"
     },
+    "recoveryStatus": { "type": "keyword" },
+    "pstExpected": { "type": "integer" },
+    "pstEmitted": { "type": "integer" },
+    "pstUnrecovered": { "type": "integer" },
+    "nbChildrenEmitted": { "type": "integer" },
     "nerTags": {
       "type": "keyword"
     },
@@ -103,10 +111,7 @@
     "join": {
       "type": "join",
       "relations": {
-        "Document": [
-          "NamedEntity",
-          "Duplicate"
-        ]
+        "Document": [ "NamedEntity", "Duplicate" ]
       }
     },
     "mention": {

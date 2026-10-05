@@ -30,6 +30,27 @@ if ! curl -sXPOST "$esindex/_clone/$target" -H 'Content-Type: application/json' 
 fi
 spinner_stop "Clone index"
 
+wait_for_clone() {
+    curl -sXGET "$ELASTICSEARCH_URL/_cluster/health/$target?wait_for_status=yellow&timeout=$1s" \
+        | jq -r '.status // "unknown"'
+}
+
+spinner_start "Wait for clone shards"
+clone_status=$(wait_for_clone 120)
+if [[ "$clone_status" != "yellow" && "$clone_status" != "green" ]]; then
+    # An unassigned clone normally just needs its allocation retried.
+    curl -sXPOST "$ELASTICSEARCH_URL/_cluster/reroute?retry_failed=true" > /dev/null
+    clone_status=$(wait_for_clone 120)
+fi
+if [[ "$clone_status" != "yellow" && "$clone_status" != "green" ]]; then
+    spinner_error "Wait for clone shards"
+    log_error "Clone '$target' was created but its shards did not allocate (status: $clone_status)"
+    log_warn "'$source' is left intact and write-blocked on purpose. Delete nothing; inspect with:"
+    log_warn "  GET /_cluster/allocation/explain {\"index\":\"$target\",\"shard\":0,\"primary\":true}"
+    exit 1
+fi
+spinner_stop "Wait for clone shards"
+
 spinner_start "Restore writes on source index"
 if ! curl -sXPUT "$esindex/_settings" -H 'Content-Type: application/json' -d'{ "settings": { "index.blocks.write": false } }' | jq -e '.acknowledged' > /dev/null; then
     spinner_error "Restore writes on source index"
